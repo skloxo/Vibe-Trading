@@ -340,3 +340,59 @@ class TestTraceWriterSessionDir:
         offload_dir = session_dir / "tool-results"
         assert offload_dir.exists()
         assert (offload_dir / "big-call.txt").exists()
+
+
+class TestTraceFieldConsistency:
+    """Every entry carries `iter` right after `type`."""
+
+    def test_tool_result_iter_second(self) -> None:
+        """write_tool_result puts iter right after type."""
+        with tempfile.TemporaryDirectory() as tmp:
+            tw = TraceWriter(Path(tmp))
+            tw.write_tool_result("c1", "result", "tool", "ok", 10, 42)
+            tw.close()
+
+            entry = json.loads((Path(tmp) / "trace.jsonl").read_text())
+            keys = list(entry.keys())
+            assert keys[:2] == ["type", "iter"], f"keys={keys}"
+            assert entry["iter"] == 42
+
+    def test_generic_write_preserves_type_then_iter(self) -> None:
+        """When caller passes type+iter first, field order is preserved on disk."""
+        with tempfile.TemporaryDirectory() as tmp:
+            tw = TraceWriter(Path(tmp))
+            tw.write({"type": "start", "iter": 3, "prompt": "hello"})
+            tw.write({"type": "end", "iter": 5, "status": "success", "iterations": 2})
+            tw.close()
+
+            for lineno, line in enumerate(
+                (Path(tmp) / "trace.jsonl").read_text().splitlines()
+            ):
+                entry = json.loads(line)
+                keys = list(entry.keys())
+                assert keys[0] == "type", f"line {lineno}: type not first: {keys}"
+                assert keys[1] == "iter", f"line {lineno}: iter not second: {keys}"
+
+    def test_all_entry_types_carry_iter(self) -> None:
+        """All semantically distinct entry types have iter."""
+        with tempfile.TemporaryDirectory() as tmp:
+            tw = TraceWriter(Path(tmp))
+            tw.write({"type": "start", "iter": 1, "prompt": "test"})
+            tw.write({"type": "message", "iter": 1, "role": "user", "content": "test"})
+            tw.write({"type": "thinking", "iter": 1, "content": "..."})
+            tw.write_tool_result("c1", "x", "tool", "ok", 10, 1)
+            tw.write({"type": "answer", "iter": 1, "content": "done"})
+            tw.write({"type": "message", "iter": 1, "role": "assistant", "content": "done"})
+            tw.write({"type": "cancelled", "iter": 1})
+            tw.write({"type": "forced_text_only", "iter": 1})
+            tw.write_tool_result("c2", "x", "tool", "error", 5, 1)
+            tw.write({"type": "end", "iter": 1, "status": "success", "iterations": 1})
+            tw.close()
+
+            entries = TraceWriter.read(Path(tmp))
+            assert len(entries) > 0
+            for e in entries:
+                assert "iter" in e, f"{e['type']} missing iter"
+                keys = list(e.keys())
+                assert keys[0] == "type", f"{e['type']}: type not first: {keys}"
+                assert keys[1] == "iter", f"{e['type']}: iter not second: keys={keys}"

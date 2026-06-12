@@ -341,6 +341,7 @@ class AgentLoop:
         self._cancelled: bool = False
         self._previous_summary: str = ""
         self._persistent_memory = persistent_memory
+        self._run_iteration: int = 0  # persistent iteration counter across run() calls
 
     def cancel(self) -> None:
         """Cancel the current loop.
@@ -397,8 +398,20 @@ class AgentLoop:
         else:
             trace_dir = run_dir
         trace = TraceWriter(trace_dir)
-        trace.write({"type": "start", "prompt": user_message})
-        trace.write({"type": "message", "role": "user", "content": user_message})
+
+        # Resume iteration counter from existing trace when a fresh
+        # AgentLoop instance continues an existing session (CLI interactive
+        # mode creates a new AgentLoop per turn, all writing to the same
+        # sessions/<session_id>/trace.jsonl).
+        # IMPORTANT: this must run BEFORE writing start/message so that
+        # those entries carry the correct iter number for the resumed turn.
+        if self._run_iteration == 0 and trace.path.exists():
+            existing = TraceWriter.read(trace_dir)
+            max_iter = max((e.get("iter", 0) for e in existing if "iter" in e), default=0)
+            self._run_iteration = max_iter
+
+        trace.write({"type": "start", "iter": self._run_iteration + 1, "prompt": user_message})
+        trace.write({"type": "message", "iter": self._run_iteration + 1, "role": "user", "content": user_message})
 
         iteration = 0
         final_content = ""
@@ -409,11 +422,12 @@ class AgentLoop:
         try:
             while iteration < self.max_iterations:
                 if self._cancelled:
-                    trace.write({"type": "cancelled", "iter": iteration})
+                    trace.write({"type": "cancelled", "iter": self._run_iteration})
                     logger.info("AgentLoop cancelled by user")
                     break
 
                 iteration += 1
+                self._run_iteration += 1
 
                 # Inject background task notifications
                 bg = get_background_manager()
@@ -461,13 +475,13 @@ class AgentLoop:
 
                 def _on_text_chunk(delta: str) -> None:
                     thinking_chunks.append(delta)
-                    self._emit("text_delta", {"delta": delta, "iter": iteration})
+                    self._emit("text_delta", {"delta": delta, "iter": self._run_iteration})
 
                 # On last iteration, drop tool definitions to force text output
                 is_last_iteration = (iteration == self.max_iterations)
                 tool_defs = None if is_last_iteration else self.registry.get_definitions()
                 if is_last_iteration:
-                    trace.write({"type": "forced_text_only", "iter": iteration})
+                    trace.write({"type": "forced_text_only", "iter": self._run_iteration})
 
                 response = self.llm.stream_chat(
                     messages,
@@ -482,7 +496,7 @@ class AgentLoop:
                             "input_tokens": int(usage.get("input_tokens") or 0),
                             "output_tokens": int(usage.get("output_tokens") or 0),
                             "total_tokens": int(usage.get("total_tokens") or 0),
-                            "iter": iteration,
+                            "iter": self._run_iteration,
                         },
                     )
                 if active_goal_id and session_id:
@@ -513,8 +527,8 @@ class AgentLoop:
 
                 thinking_text = "".join(thinking_chunks)
                 if thinking_text:
-                    trace.write({"type": "thinking", "iter": iteration, "content": thinking_text})
-                    self._emit("thinking_done", {"iter": iteration, "content": thinking_text[:500]})
+                    trace.write({"type": "thinking", "iter": self._run_iteration, "content": thinking_text})
+                    self._emit("thinking_done", {"iter": self._run_iteration, "content": thinking_text[:500]})
 
                 if not response.has_tool_calls:
                     final_content = response.content or ""
@@ -546,7 +560,7 @@ class AgentLoop:
                             trace.write(
                                 {
                                     "type": "goal_continuation_suppressed",
-                                    "iter": iteration,
+                                    "iter": self._run_iteration,
                                     "goal_id": active_goal_id,
                                     "progress": current_progress,
                                     "continuations": goal_continuations,
@@ -556,13 +570,13 @@ class AgentLoop:
                             trace.write(
                                 {
                                     "type": "goal_intermediate_answer",
-                                    "iter": iteration,
+                                    "iter": self._run_iteration,
                                     "goal_id": active_goal_id,
                                     "content": final_content,
                                     "progress": current_progress,
                                 }
                             )
-                            trace.write({"type": "message", "role": "assistant", "content": final_content})
+                            trace.write({"type": "message", "iter": self._run_iteration, "role": "assistant", "content": final_content})
                             react_trace.append(
                                 {"type": "goal_intermediate_answer", "content": final_content[:500]}
                             )
@@ -580,8 +594,8 @@ class AgentLoop:
                             goal_continuations += 1
                             continue
 
-                    trace.write({"type": "answer", "iter": iteration, "content": final_content})
-                    trace.write({"type": "message", "role": "assistant", "content": final_content})
+                    trace.write({"type": "answer", "iter": self._run_iteration, "content": final_content})
+                    trace.write({"type": "message", "iter": self._run_iteration, "role": "assistant", "content": final_content})
                     react_trace.append({"type": "answer", "content": final_content[:500]})
                     break
 
@@ -595,7 +609,7 @@ class AgentLoop:
 
                 # Execute tools with read/write batching
                 compact_requested, focus_topic = self._process_tool_calls(
-                    response.tool_calls, context, messages, trace, react_trace, iteration,
+                    response.tool_calls, context, messages, trace, react_trace, self._run_iteration,
                 )
 
                 # Layer 3: compress after all tools have executed
@@ -605,7 +619,7 @@ class AgentLoop:
 
         except Exception as exc:
             logger.exception(f"AgentLoop error: {exc}")
-            trace.write({"type": "end", "status": "error", "reason": str(exc), "iterations": iteration})
+            trace.write({"type": "end", "iter": self._run_iteration, "status": "error", "reason": str(exc), "iterations": iteration})  # per-run count
             trace.close()
             state_store.mark_failure(run_dir, str(exc))
             return {
@@ -637,6 +651,7 @@ class AgentLoop:
 
         end_event: dict[str, Any] = {
             "type": "end",
+            "iter": self._run_iteration,
             "status": final_status,
             "iterations": iteration,
         }
