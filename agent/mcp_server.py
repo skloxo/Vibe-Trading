@@ -319,7 +319,7 @@ def add_goal_evidence(
         evidence_type: Evidence category, default evidence.
         tool_call_id: Source tool call id for traceability; it does not verify evidence by itself.
         run_id: Vibe-Trading run id. It verifies evidence only when the run directory exists.
-        source_provider: Data/provider name such as yfinance, OKX, tushare.
+        source_provider: Data/provider name such as tushare, baostock, tencent.
         source_type: Source category such as market_data, document, backtest.
         source_uri: Optional source URL/path.
         symbol_universe: Symbols covered by the evidence.
@@ -434,11 +434,11 @@ def backtest(run_dir: str) -> str:
     - code/signal_engine.py: strategy signal generation code
 
     Supported data sources (set in config.json "source" field):
-    - "yfinance": HK/US equities (free, no API key needed)
-    - "okx": cryptocurrency (free, no API key needed)
     - "tushare": China A-shares (requires TUSHARE_TOKEN env var)
-    - "akshare": A-shares, US, HK, futures, forex (free, no API key)
-    - "ccxt": crypto from 100+ exchanges (free, no API key)
+    - "baostock": China A-shares via TCP protocol (free, no API key)
+    - "tencent": China A-shares via Tencent Finance API (free, no API key)
+    - "akshare": A-shares, futures, forex (free, no API key)
+    - "mootdx": A-shares via Tongdaxin direct (free, no API key)
     - "auto": auto-detect based on symbol format (with fallback)
 
     Returns metrics (Sharpe, return, drawdown, etc.) and artifact paths.
@@ -476,7 +476,7 @@ def factor_analysis(
         factor_name: Factor column name in daily_basic data (e.g. "pe_ttm", "pb", "turnover_rate").
         start_date: Start date (YYYY-MM-DD).
         end_date: End date (YYYY-MM-DD).
-        source: Data source ("tushare", "yfinance", "auto").
+        source: Data source ("tushare", "akshare", "mootdx", "baostock", "tencent", "auto").
         top_n: Number of top-ranked stocks per period.
         bottom_n: Number of bottom-ranked stocks per period.
     """

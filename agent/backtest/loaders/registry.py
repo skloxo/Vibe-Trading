@@ -110,7 +110,7 @@ def resolve_loader(market: str) -> Any:
     ``is_available()`` returns ``True``.
 
     Args:
-        market: Market type key (e.g. ``"a_share"``, ``"crypto"``).
+        market: Market type key (e.g. ``"a_share"``, ``"futures"``).
 
     Returns:
         A loader instance.
