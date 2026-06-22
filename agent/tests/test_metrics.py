@@ -61,16 +61,9 @@ class TestBarsPerYear:
     def test_daily_tushare(self) -> None:
         assert calc_bars_per_year("1D", "tushare") == 252
 
-    def test_daily_okx(self) -> None:
-        assert calc_bars_per_year("1D", "okx") == 365
-
     def test_minute_tushare(self) -> None:
         # 252 trading days × 240 minutes/day = 60480
         assert calc_bars_per_year("1m", "tushare") == 252 * 240
-
-    def test_hourly_okx(self) -> None:
-        # 365 days × 24 hours/day = 8760
-        assert calc_bars_per_year("1H", "okx") == 365 * 24
 
     def test_minute_mootdx(self) -> None:
         # mootdx is A-share: 252 trading days × 240 minutes/day (regression —

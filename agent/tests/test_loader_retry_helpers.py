@@ -401,8 +401,8 @@ def test_loader_cache_skips_unsettled_today_range(tmp_path, monkeypatch):
     today = dt.date.today().isoformat()
     start = (dt.date.today() - dt.timedelta(days=5)).isoformat()
     kwargs = {
-        "source": "okx",
-        "symbol": "BTC-USDT",
+        "source": "tushare",
+        "symbol": "000001.SZ",
         "timeframe": "1D",
         "start_date": start,
         "end_date": today,

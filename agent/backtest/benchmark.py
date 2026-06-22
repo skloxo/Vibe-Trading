@@ -17,12 +17,8 @@ import pandas as pd
 # -------------------------------------------------------------------
 
 MARKET_BENCHMARKS: dict[str, Optional[str]] = {
-    "us_equity":  "SPY",
-    "hk_equity":  "HK.03100",   # Hang Seng China Enterprises ETF
     "a_share":    "000300.SH",  # CSI 300 (China A-share core index)
-    "crypto":     "BTC-USDT",
-    "futures":    "ES.CME",      # E-mini S&P 500 futures
-    "forex":      None,         # no universal benchmark
+    "futures":    "000300.SH",  # CSI 300 as proxy
 }
 
 
@@ -45,7 +41,7 @@ def resolve_benchmark(
 
     Args:
         strategy_codes: Instruments being backtested (used for market inference).
-        source:         Data source name (tushare / okx / akshare).
+        source:         Data source name (tushare / akshare).
         start_date:     Backtest start date.
         end_date:       Backtest end date.
         interval:       Bar interval (1m / 5m / 15m / 30m / 1H / 4H / 1D).
@@ -111,12 +107,8 @@ def _infer_market(codes: list[str], source: str) -> str:
 
     first = codes[0].upper()
 
-    if source == "okx" or "-" in first or "/" in first:
-        return "crypto"
-    if first.endswith(".US"):
-        return "us_equity"
-    if first.endswith(".HK"):
-        return "hk_equity"
+    if "-" in first or "/" in first:
+        return "futures"
     if source in ("tushare", "akshare"):
         if first.isdigit() and len(first) == 6:
             return "a_share"
