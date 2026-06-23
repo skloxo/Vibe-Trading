@@ -686,7 +686,7 @@ def trading_select_connection(connection: str) -> str:
     """Select the default trading connector profile for later trading_* calls.
 
     Args:
-        connection: Profile id, e.g. ``ibkr-paper-local`` or ``robinhood-live-mcp``.
+        connection: Profile id, e.g. ``robinhood-live-mcp``.
     """
     registry = _get_registry()
     return registry.execute("trading_select_connection", {"connection": connection})

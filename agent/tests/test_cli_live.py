@@ -345,8 +345,13 @@ class TestLiveAuthorize:
         build.assert_called_once()
         assert build.call_args.args[0] == "robinhood"
 
-    def test_authorize_uses_long_init_budget_without_widening_tool_timeout(self) -> None:
-        """Old user configs without initTimeout still get enough OAuth time."""
+    def test_authorize_widens_tool_timeout_to_deadline(self) -> None:
+        """list_tools is bounded by tool_timeout, so authorize must widen it too.
+
+        Regression for #259: the OAuth flow is driven by the list_tools
+        handshake (per-call tool_timeout, default 30 s), not init_timeout. Both
+        must reach the 300 s authorize deadline.
+        """
         from cli._legacy import cmd_live_authorize
         from src.config.schema import MCPServerConfig
 
@@ -364,9 +369,70 @@ class TestLiveAuthorize:
             assert cmd_live_authorize("robinhood") == 0
 
         passed_cfg = build.call_args.args[1]
-        assert cfg.init_timeout is None
+        assert cfg.tool_timeout == 30  # original unchanged
         assert passed_cfg.init_timeout == 300
-        assert passed_cfg.tool_timeout == 30
+        assert passed_cfg.tool_timeout == 300
+        # Single attempt: no retry that would orphan the OAuth callback.
+        assert build.call_args.kwargs["max_list_tools_attempts"] == 1
+
+    def test_authorize_preserves_larger_configured_tool_timeout(self) -> None:
+        """Raise-only: an already-larger configured timeout is not lowered."""
+        from cli._legacy import cmd_live_authorize
+        from src.config.schema import MCPServerConfig
+
+        cfg = MCPServerConfig.model_validate(
+            {
+                "type": "streamableHttp",
+                "url": "https://agent.robinhood.com/mcp/trading",
+                "auth": {"type": "oauth", "scopes": ["trading.read"]},
+                "enabledTools": ["get_account"],
+                "toolTimeout": 600,
+                "initTimeout": 600,
+            }
+        )
+        with patch("cli._legacy._live_server_config", return_value=cfg), patch(
+            "src.tools.mcp.build_mcp_tool_wrappers", return_value=[1]
+        ) as build:
+            assert cmd_live_authorize("robinhood") == 0
+
+        passed_cfg = build.call_args.args[1]
+        assert passed_cfg.tool_timeout == 600
+        assert passed_cfg.init_timeout == 600
+
+    def test_authorize_honors_timeout_env_override(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """VIBE_LIVE_AUTHORIZE_TIMEOUT_SECONDS overrides the 300 s default."""
+        from cli._legacy import cmd_live_authorize
+        from src.config.schema import MCPServerConfig
+
+        monkeypatch.setenv("VIBE_LIVE_AUTHORIZE_TIMEOUT_SECONDS", "900")
+        cfg = MCPServerConfig.model_validate(
+            {
+                "type": "streamableHttp",
+                "url": "https://agent.robinhood.com/mcp/trading",
+                "auth": {"type": "oauth", "scopes": ["trading.read"]},
+                "enabledTools": ["get_account"],
+            }
+        )
+        with patch("cli._legacy._live_server_config", return_value=cfg), patch(
+            "src.tools.mcp.build_mcp_tool_wrappers", return_value=[1]
+        ) as build:
+            assert cmd_live_authorize("robinhood") == 0
+
+        passed_cfg = build.call_args.args[1]
+        assert passed_cfg.tool_timeout == 900
+        assert passed_cfg.init_timeout == 900
+
+    @pytest.mark.parametrize("raw", ["", "abc", "0", "-5"])
+    def test_authorize_timeout_env_invalid_falls_back_to_default(
+        self, raw: str, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """Empty / non-numeric / non-positive env values fall back to 300 s."""
+        from cli._legacy import _authorize_timeout_seconds
+
+        monkeypatch.setenv("VIBE_LIVE_AUTHORIZE_TIMEOUT_SECONDS", raw)
+        assert _authorize_timeout_seconds() == 300.0
 
 
 # ---------------------------------------------------------------------------

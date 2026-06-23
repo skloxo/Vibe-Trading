@@ -101,8 +101,8 @@ def validate_ohlc(frame: pd.DataFrame, *, strategy: str = "drop") -> pd.DataFram
 
 
 # ---------------------------------------------------------------------------
-# Bounded retry / budget helpers (shared by okx and any future
-# loader calling a flaky external API).
+# Bounded retry / budget helpers (shared by any loader calling a flaky
+# external API).
 # ---------------------------------------------------------------------------
 
 DEFAULT_BACKOFF: tuple[float, ...] = (0.5, 1.5, 4.0)

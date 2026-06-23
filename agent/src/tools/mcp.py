@@ -108,6 +108,7 @@ def build_mcp_tool_wrappers(
     *,
     local_server_name: str | None = None,
     client_factory: ClientFactory | None = None,
+    max_list_tools_attempts: int = 2,
 ) -> list["MCPRemoteTool"]:
     """Build local tool wrappers for a configured MCP server.
 
@@ -119,6 +120,11 @@ def build_mcp_tool_wrappers(
             tool names stable when multiple raw server names sanitize to the
             same local prefix.
         client_factory: Optional async client factory for tests.
+        max_list_tools_attempts: Number of ``list_tools`` attempts during tool
+            discovery. Defaults to 2 (one transient retry). Set to 1 for the
+            interactive ``connector authorize`` bootstrap, where a retry would
+            start a second OAuth callback server and orphan the user's
+            in-progress sign-in.
 
     Returns:
         Local BaseTool wrappers for all enabled remote tools.
@@ -132,6 +138,7 @@ def build_mcp_tool_wrappers(
         server_config,
         local_server_name=local_server_name,
         client_factory=client_factory,
+        max_list_tools_attempts=max_list_tools_attempts,
     )
     return [MCPRemoteTool(adapter=adapter, spec=spec) for spec in adapter.discover_tools()]
 
@@ -289,6 +296,7 @@ class MCPServerAdapter:
         *,
         local_server_name: str | None = None,
         client_factory: ClientFactory | None = None,
+        max_list_tools_attempts: int = 2,
     ) -> None:
         """Initialize the MCP server adapter.
 
@@ -298,11 +306,16 @@ class MCPServerAdapter:
             local_server_name: Optional local naming override used only for the
                 server portion of generated tool names.
             client_factory: Optional async client factory, mainly for tests.
+            max_list_tools_attempts: Number of ``list_tools`` attempts (>= 1).
+                Defaults to 2 (one transient retry). The authorize bootstrap
+                sets this to 1 so a retry cannot start a second OAuth callback
+                server and orphan an in-progress sign-in.
         """
         self.server_name = server_name
         self.local_server_name = local_server_name or server_name
         self.server_config = server_config
         self._client_factory = client_factory or self._build_client
+        self._list_tools_attempts = max(1, max_list_tools_attempts)
 
     def discover_tools(self) -> list[MCPRemoteToolSpec]:
         """Discover enabled tools from the remote MCP server.
@@ -444,7 +457,10 @@ class MCPServerAdapter:
         )
 
     async def _list_tools(self) -> list[mcp_types.Tool]:
-        """List remote tools with a single retry on transient failures.
+        """List remote tools, retrying once on transient failures by default.
+
+        The number of attempts is governed by ``self._list_tools_attempts``
+        (1 disables the retry, used by the authorize bootstrap).
 
         Returns:
             Remote MCP tool definitions.
@@ -452,7 +468,11 @@ class MCPServerAdapter:
         Raises:
             Exception: Propagates non-transient or exhausted failures.
         """
-        return await self._run_with_retry("list_tools", self._list_tools_once)
+        return await self._run_with_retry(
+            "list_tools",
+            self._list_tools_once,
+            attempts=self._list_tools_attempts,
+        )
 
     async def _list_tools_once(self) -> list[mcp_types.Tool]:
         """List remote tools without retry handling.
@@ -494,21 +514,26 @@ class MCPServerAdapter:
         self,
         operation_name: str,
         operation: Callable[[], Awaitable[ResultT]],
+        *,
+        attempts: int = 2,
     ) -> ResultT:
-        """Run an async MCP operation with a single transient retry.
+        """Run an async MCP operation with bounded transient retries.
 
         Args:
             operation_name: Human-readable operation label.
             operation: Async operation to execute.
+            attempts: Maximum attempts (>= 1). Defaults to 2 (one transient
+                retry). Pass 1 to disable retry — used by the authorize
+                bootstrap, where a retry restarts the OAuth flow.
 
         Returns:
             Operation result.
 
         Raises:
             Exception: Re-raises the last failure when retry is not allowed or
-                both attempts fail.
+                all attempts fail.
         """
-        attempts = 2
+        attempts = max(1, attempts)
         for attempt in range(1, attempts + 1):
             try:
                 return await operation()

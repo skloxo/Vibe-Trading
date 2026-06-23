@@ -315,6 +315,39 @@ def test_build_mcp_tool_wrappers_retries_transient_discovery_failure() -> None:
     assert state["list_calls"] == 2
 
 
+def test_build_mcp_tool_wrappers_single_attempt_does_not_retry_discovery() -> None:
+    """max_list_tools_attempts=1 (authorize bootstrap) must not retry.
+
+    Regression for #259: a retry opens a fresh client context that starts a
+    second OAuth callback server, orphaning the user's in-progress sign-in. The
+    authorize path passes max_list_tools_attempts=1 so the first transient
+    failure propagates immediately and exactly one client context is opened.
+    """
+    transient = McpError(
+        mcp_types.ErrorData(code=mcp_types.CONNECTION_CLOSED, message="Connection closed")
+    )
+    state = {
+        "list_calls": 0,
+        "call_calls": 0,
+        "call_records": [],
+        "list_outcomes": [
+            transient,
+            [mcp_types.Tool(name="quote", description="Quote", inputSchema={"type": "object"})],
+        ],
+        "call_outcomes": [],
+    }
+
+    with pytest.raises(McpError):
+        build_mcp_tool_wrappers(
+            "demo",
+            _make_config(),
+            client_factory=_make_factory(state),
+            max_list_tools_attempts=1,
+        )
+
+    assert state["list_calls"] == 1
+
+
 def test_remote_tool_execute_returns_normalized_error_payload_without_retry() -> None:
     state = {
         "list_calls": 0,

@@ -226,8 +226,7 @@ def last_price_usd(symbol: str, asset_class: AssetClass) -> float | None:
 
     The fallback path the gate uses when the broker's own quote read tool is
     unavailable: pull the most recent daily close from the first available
-    loader in the asset-class market chain (akshare for US equity,
-    okx for crypto — the project's standard auto-fallback). Used to convert
+    loader in the asset-class market chain). Used to convert
     a quantity-only order into a USD notional so the notional cap stays
     enforceable (SPEC §4).
 

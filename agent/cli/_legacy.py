@@ -2742,6 +2742,31 @@ def cmd_provider_login(provider: str) -> int:
 
 _DEFAULT_LIVE_BROKER = "robinhood"
 _LIVE_AUTHORIZE_INIT_TIMEOUT_SECONDS = 300.0
+_LIVE_AUTHORIZE_TIMEOUT_ENV = "VIBE_LIVE_AUTHORIZE_TIMEOUT_SECONDS"
+
+
+def _authorize_timeout_seconds() -> float:
+    """Resolve the OAuth authorize handshake deadline in seconds.
+
+    Reads ``VIBE_LIVE_AUTHORIZE_TIMEOUT_SECONDS`` and falls back to
+    :data:`_LIVE_AUTHORIZE_INIT_TIMEOUT_SECONDS` (300 s) when it is unset,
+    empty, non-numeric, or not strictly positive. This deadline bounds the
+    interactive ``list_tools`` handshake that drives the broker OAuth flow, so
+    a multi-minute human sign-in (e.g. Robinhood's face scan) has room to
+    complete.
+
+    Returns:
+        The authorize deadline in seconds (a positive float).
+    """
+    raw = os.getenv(_LIVE_AUTHORIZE_TIMEOUT_ENV)
+    if raw:
+        try:
+            value = float(raw)
+        except ValueError:
+            return _LIVE_AUTHORIZE_INIT_TIMEOUT_SECONDS
+        if value > 0:
+            return value
+    return _LIVE_AUTHORIZE_INIT_TIMEOUT_SECONDS
 
 
 def _live_api_base() -> str:
@@ -2845,15 +2870,36 @@ def cmd_live_authorize(broker: str) -> int:
     try:
         from src.tools.mcp import build_mcp_tool_wrappers
 
-        configured_init_timeout = getattr(server_config, "init_timeout", None)
-        if (
-            configured_init_timeout is None
-            or float(configured_init_timeout) < _LIVE_AUTHORIZE_INIT_TIMEOUT_SECONDS
-        ) and hasattr(server_config, "model_copy"):
-            server_config = server_config.model_copy(
-                update={"init_timeout": _LIVE_AUTHORIZE_INIT_TIMEOUT_SECONDS}
-            )
-        tools = build_mcp_tool_wrappers(key, server_config)
+        # The OAuth flow is driven lazily by the first request to the server —
+        # the `list_tools` discovery handshake — which is bounded by the
+        # per-call `tool_timeout` (default 30 s), NOT `init_timeout`. Raise both
+        # to the authorize deadline so a multi-minute human sign-in (e.g.
+        # Robinhood's face scan) does not trip the handshake. Raise-only: never
+        # shrink an already-larger user-configured timeout.
+        authorize_timeout = _authorize_timeout_seconds()
+        if hasattr(server_config, "model_copy"):
+            updates: dict[str, float] = {}
+            configured_init_timeout = getattr(server_config, "init_timeout", None)
+            if (
+                configured_init_timeout is None
+                or float(configured_init_timeout) < authorize_timeout
+            ):
+                updates["init_timeout"] = authorize_timeout
+            configured_tool_timeout = getattr(server_config, "tool_timeout", None)
+            if (
+                configured_tool_timeout is None
+                or float(configured_tool_timeout) < authorize_timeout
+            ):
+                updates["tool_timeout"] = authorize_timeout
+            if updates:
+                server_config = server_config.model_copy(update=updates)
+
+        # Single attempt: a transient-retry would open a fresh client context
+        # that starts a SECOND OAuth callback server on a new port, orphaning
+        # the sign-in the user just completed against the first one (see #259).
+        tools = build_mcp_tool_wrappers(
+            key, server_config, max_list_tools_attempts=1
+        )
     except Exception as exc:  # noqa: BLE001 — surface any handshake failure
         console.print(f"[red]Authorization failed:[/red] {exc}")
         return EXIT_RUN_FAILED
