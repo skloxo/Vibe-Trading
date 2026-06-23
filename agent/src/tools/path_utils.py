@@ -34,7 +34,8 @@ def safe_path(p: str, workdir: Path) -> Path:
     """Resolve `p` under `workdir` and ensure it stays inside.
 
     Args:
-        p: User-supplied path (relative or absolute).
+        p: User-supplied path (relative or absolute).  ``~`` expansion is
+            supported so callers can pass home-relative paths.
         workdir: Workspace root. `p` must resolve to a location inside.
 
     Returns:
@@ -46,7 +47,13 @@ def safe_path(p: str, workdir: Path) -> Path:
     """
     _rejects_unc(p)
     base = Path(workdir).resolve()
-    resolved = (base / p).resolve()
+    # Expand ~ so home-relative paths (e.g. ~/.vibe-trading/scripts/foo.py)
+    # resolve correctly instead of being treated as literal directory names.
+    expanded = Path(p).expanduser()
+    if expanded.is_absolute():
+        resolved = expanded.resolve()
+    else:
+        resolved = (base / p).resolve()
     try:
         resolved.relative_to(base)
     except ValueError as exc:

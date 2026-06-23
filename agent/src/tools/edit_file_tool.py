@@ -63,30 +63,18 @@ class EditFileTool(BaseTool):
             try:
                 run_root = _safe_run_dir(str(run_dir))
                 resolved = _safe_path(file_path, run_root)
-            except ValueError:
-                pass
-            else:
-                # _safe_path may not expand tildes; verify path is valid
-                if not resolved.exists():
-                    candidate = Path(file_path).expanduser().resolve()
-                    if candidate.is_absolute():
-                        for extra_root in _allowed_file_roots():
-                            if candidate.is_relative_to(extra_root):
-                                resolved = candidate
-                                break
-            if not resolved or (not resolved.exists()):
+            except ValueError as exc:
+                # Fallback: check if path resolves inside a configured extra file root
                 candidate = Path(file_path).expanduser().resolve()
-                allowed = False
                 for extra_root in _allowed_file_roots():
                     if candidate.is_relative_to(extra_root):
-                        allowed = True
                         resolved = candidate
                         break
-                if not allowed:
+                else:
                     return json.dumps(
                         {
                             "status": "error",
-                            "error": f"Path {file_path!r} is outside allowed workspace",
+                            "error": str(exc),
                         },
                         ensure_ascii=False,
                     )

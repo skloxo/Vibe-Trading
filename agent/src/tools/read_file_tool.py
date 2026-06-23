@@ -60,7 +60,7 @@ class ReadFileTool(BaseTool):
         if skills_dir.exists():
             allowed_roots.append(skills_dir.resolve())
 
-        # Add configured extra file roots (e.g. ~/.vibe-trading/scripts/, ~/.vibe-trading/db/)
+        # Add configured extra file roots (VIBE_TRADING_ALLOWED_FILE_ROOTS)
         for extra_root in _allowed_file_roots():
             if extra_root not in allowed_roots:
                 allowed_roots.append(extra_root)
@@ -71,7 +71,6 @@ class ReadFileTool(BaseTool):
             paths_to_try.append(file_path[len("skills/") :])
 
         resolved = None
-        expanded_candidate = Path(file_path).expanduser().resolve()
         for root in allowed_roots:
             for p in paths_to_try:
                 try:
@@ -80,11 +79,7 @@ class ReadFileTool(BaseTool):
                         resolved = candidate
                         break
                 except ValueError:
-                    pass
-                # _safe_path doesn't expand tildes; try expanded path directly
-                if expanded_candidate.is_absolute() and expanded_candidate.is_relative_to(root) and expanded_candidate.exists():
-                    resolved = expanded_candidate
-                    break
+                    continue
             if resolved:
                 break
 
