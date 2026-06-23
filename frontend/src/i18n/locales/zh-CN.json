@@ -2,6 +2,11 @@
   "app": {
     "version": "v0.1.10"
   },
+  "charts": {
+    "noPriceData": "暂无价格数据",
+    "noCorrelationData": "暂无相关性数据",
+    "noEquityData": "暂无收益曲线数据"
+  },
   "layout": {
     "home": "首页",
     "agent": "智能体",
@@ -199,6 +204,12 @@
     "timeoutSeconds": "超时（秒）",
     "maxRetries": "最大重试次数",
     "reasoningEffort": "推理强度",
+    "off": "关闭",
+    "reasoningEffortLow": "低",
+    "reasoningEffortMedium": "中",
+    "reasoningEffortHigh": "高",
+    "reasoningEffortMax": "最大",
+    "reasoningEffortDesc": "模型在回答前的思考强度。更高的强度会进行更彻底的推理，但回答速度较慢；选择「关闭」以获得最快的响应速度。",
     "useDefaultModel": "使用默认模型",
     "useDefaultUrl": "使用默认 URL",
     "dataSourcesDesc": "配置回测引擎的外部数据源。",
@@ -214,7 +225,39 @@
     "loaderAvailable": "加载器可用",
     "noProjectLoader": "无项目加载器",
     "pythonPackageInstalled": "Python 包已安装",
-    "pythonPackageNotInstalled": "Python 包未安装"
+    "pythonPackageNotInstalled": "Python 包未安装",
+    "localApiAccess": "本地 API 访问",
+    "localApiAccessDesc": "对于远程或专用 Web UI 部署，请在浏览器中输入一次服务器 API 密钥。本地主机（localhost）使用可保持为空。",
+    "serverApiKey": "服务器 API 密钥",
+    "storedInBrowser": "仅存储在此浏览器中。留空以清除它。",
+    "localApiKeySaved": "本地 API 密钥已保存",
+    "subtitle": "配置此本地项目的模型凭证和市场数据源 Token。",
+    "unavailable": "设置不可用",
+    "llmSettings": "LLM 设置",
+    "llmSettingsDesc": "选择智能体使用的模型，并将其保存到项目本地的 agent/.env 文件中。",
+    "connection": "连接",
+    "model": "模型",
+    "useProviderDefaults": "使用提供商默认设置",
+    "modelIdHint": "使用提供商所需的准确模型 ID。",
+    "clearApiKey": "清除已保存的 API 密钥",
+    "generation": "生成设置",
+    "dataSourceSettings": "数据源设置",
+    "dataSourceSettingsDesc": "配置回测引擎和研究智能体使用的可选市场数据凭证。",
+    "tushareToken": "Tushare Token",
+    "clearTushareToken": "清除已保存的 Tushare Token",
+    "saveDataSourceSettings": "保存数据源设置",
+    "baostock": "BaoStock",
+    "loadLlmSettingsFailed": "加载 LLM 设置失败: {{message}}",
+    "loadDataSourceSettingsFailed": "加载数据源设置失败: {{message}}",
+    "llmSettingsSaved": "LLM 设置已保存",
+    "saveLlmSettingsFailed": "保存 LLM 设置失败: {{message}}",
+    "dataSourceSettingsSaved": "数据源设置已保存",
+    "saveDataSourceSettingsFailed": "保存数据源设置失败: {{message}}",
+    "configured": "已配置",
+    "keepCurrentKey": "留空以保留当前密钥",
+    "providerUsesOauth": "该提供商使用 OAuth。请运行: {{command}}",
+    "noApiKeyRequired": "此提供商不需要 API 密钥。",
+    "keepCurrentToken": "留空以保留当前 Token"
   },
   "agent": {
     "connectionLostReconnect": "连接已断开，正在重连…",
@@ -259,7 +302,16 @@
     "uploaded": "已上传：{{filename}}",
     "uploadFailed": "上传失败：{{error}}",
     "failedToSend": "发送消息失败，请重试。",
-    "failedToContinue": "继续目标失败，请重试。"
+    "failedToContinue": "继续目标失败，请重试。",
+    "runtimeBadge": "运行时",
+    "activeResearchGoal": "活跃的研究目标",
+    "evidenceCollectedTitle": "为此研究目标收集的证据",
+    "evidenceCount": "{{count}} 条证据",
+    "uploading": "上传中...",
+    "haltConnectorTitle": "立即停止连接器运行时活动",
+    "haltConnector": "停止连接器运行时",
+    "moreOptions": "更多选项",
+    "uploadPdf": "上传 PDF 文档"
   },
   "runDetail": {
     "title": "运行详情",
@@ -421,7 +473,14 @@
     "icPositiveTitle": "IC 为正的期数占比",
     "sampleCount": "样本数",
     "sampleCountTitle": "IC 样本数量",
-    "noBenchmarkMatch": "无基准匹配"
+    "noBenchmarkMatch": "无基准匹配",
+    "alphaCatalogue": "Alpha 目录",
+    "predictiveHalfLifeTitle": "预测半衰期：信号边缘衰减前的交易日数",
+    "id": "ID",
+    "icSampleCount": "IC 样本数量",
+    "alpha": "Alpha",
+    "alphaComparisonRanking": "Alpha 对比排名",
+    "skippedPre": "跳过:"
   },
   "validation": {
     "noData": "暂无验证数据。",
@@ -518,7 +577,9 @@
     "failedToCommit": "提交 mandate 失败。",
     "noLeverage": "无杠杆",
     "leverageValue": "{{value}}× 杠杆",
-    "tradesPerDay": "{{count}} 笔/天"
+    "tradesPerDay": "{{count}} 笔/天",
+    "adjustTitle": "调整此 mandate",
+    "adjustPlaceholder": "例如：保留当前设置但将每日交易次数上限提高到 10 次"
   },
   "messageBubble": {
     "copied": "已复制",

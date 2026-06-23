@@ -2,6 +2,11 @@
   "app": {
     "version": "v0.1.10"
   },
+  "charts": {
+    "noPriceData": "No price data",
+    "noCorrelationData": "No correlation data",
+    "noEquityData": "No equity data"
+  },
   "layout": {
     "home": "Home",
     "agent": "Agent",
@@ -199,6 +204,12 @@
     "timeoutSeconds": "Timeout (seconds)",
     "maxRetries": "Max Retries",
     "reasoningEffort": "Reasoning Effort",
+    "off": "Off",
+    "reasoningEffortLow": "Low",
+    "reasoningEffortMedium": "Medium",
+    "reasoningEffortHigh": "High",
+    "reasoningEffortMax": "Max",
+    "reasoningEffortDesc": "How hard the model thinks before answering. Higher is more thorough but slower; leave Off for fastest replies.",
     "useDefaultModel": "Use default model",
     "useDefaultUrl": "Use default URL",
     "dataSourcesDesc": "Configure external data sources for the backtesting engine.",
@@ -214,7 +225,39 @@
     "loaderAvailable": "Loader available",
     "noProjectLoader": "No project loader",
     "pythonPackageInstalled": "Python package installed",
-    "pythonPackageNotInstalled": "Python package not installed"
+    "pythonPackageNotInstalled": "Python package not installed",
+    "localApiAccess": "Local API access",
+    "localApiAccessDesc": "For remote or private Web UI deployments, enter the server API key once in this browser. Localhost use can stay blank.",
+    "serverApiKey": "Server API key",
+    "storedInBrowser": "Stored only in this browser. Leave blank to clear it.",
+    "localApiKeySaved": "Local API key saved",
+    "subtitle": "Configure model credentials and market data source tokens for this local project.",
+    "unavailable": "Settings are unavailable",
+    "llmSettings": "LLM Settings",
+    "llmSettingsDesc": "Choose the model used by the agent and save it to the project-local agent/.env file.",
+    "connection": "Connection",
+    "model": "Model",
+    "useProviderDefaults": "Use provider defaults",
+    "modelIdHint": "Use the exact model id required by your provider.",
+    "clearApiKey": "Clear saved API key",
+    "generation": "Generation",
+    "dataSourceSettings": "Data Source Settings",
+    "dataSourceSettingsDesc": "Configure optional market data credentials used by backtests and research agents.",
+    "tushareToken": "Tushare token",
+    "clearTushareToken": "Clear saved Tushare token",
+    "saveDataSourceSettings": "Save data source settings",
+    "baostock": "BaoStock",
+    "loadLlmSettingsFailed": "Failed to load LLM settings: {{message}}",
+    "loadDataSourceSettingsFailed": "Failed to load data source settings: {{message}}",
+    "llmSettingsSaved": "LLM settings saved",
+    "saveLlmSettingsFailed": "Failed to save LLM settings: {{message}}",
+    "dataSourceSettingsSaved": "Data source settings saved",
+    "saveDataSourceSettingsFailed": "Failed to save data source settings: {{message}}",
+    "configured": "Configured",
+    "keepCurrentKey": "Leave blank to keep the current key",
+    "providerUsesOauth": "This provider uses OAuth. Run: {{command}}",
+    "noApiKeyRequired": "This provider does not require an API key.",
+    "keepCurrentToken": "Leave blank to keep the current token"
   },
   "agent": {
     "connectionLostReconnect": "Connection lost, reconnecting…",
@@ -259,7 +302,16 @@
     "uploaded": "Uploaded: {{filename}}",
     "uploadFailed": "Upload failed: {{error}}",
     "failedToSend": "Failed to send message, please retry.",
-    "failedToContinue": "Failed to continue goal, please retry."
+    "failedToContinue": "Failed to continue goal, please retry.",
+    "runtimeBadge": "RUNTIME",
+    "activeResearchGoal": "Active research goal",
+    "evidenceCollectedTitle": "Evidence collected toward this research goal",
+    "evidenceCount": "{{count}} evidence",
+    "uploading": "Uploading...",
+    "haltConnectorTitle": "Instantly halt connector runtime activity",
+    "haltConnector": "Halt connector runtime",
+    "moreOptions": "More options",
+    "uploadPdf": "Upload PDF document"
   },
   "runDetail": {
     "title": "Run Detail",
@@ -421,7 +473,14 @@
     "icPositiveTitle": "Share of periods with positive IC",
     "sampleCount": "n",
     "sampleCountTitle": "IC sample count",
-    "noBenchmarkMatch": "No benchmark match"
+    "noBenchmarkMatch": "No benchmark match",
+    "alphaCatalogue": "Alpha catalogue",
+    "predictiveHalfLifeTitle": "Predictive half-life: trading days before the signal's edge decays",
+    "id": "ID",
+    "icSampleCount": "IC sample count",
+    "alpha": "Alpha",
+    "alphaComparisonRanking": "Alpha comparison ranking",
+    "skippedPre": "Skipped:"
   },
   "validation": {
     "noData": "No validation data available.",
@@ -518,7 +577,9 @@
     "failedToCommit": "Failed to commit mandate.",
     "noLeverage": "no leverage",
     "leverageValue": "{{value}}× leverage",
-    "tradesPerDay": "{{count}} trades/day"
+    "tradesPerDay": "{{count}} trades/day",
+    "adjustTitle": "Adjust this mandate",
+    "adjustPlaceholder": "e.g. keep this but raise the daily cap to 10"
   },
   "messageBubble": {
     "copied": "Copied",
