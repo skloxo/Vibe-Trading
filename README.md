@@ -34,6 +34,7 @@
 
 ## 📰 News
 
+- **2026-06-24** 🤖 **v0.1.10-s2 — 即插即用多通道飞书 Bot 支持与可视化设置**：引入多飞书机器人配置（可视化 CRUD 管理），并在未录入白名单时支持向 Bot 发送 `/myid` 反射获取自己的 OpenID。解决 Lark SDK 底层多连接并发/重启时共用 Uvicorn 主线程事件循环的死锁与 RuntimeError 冲突问题。提供小白友好型 UI 切换逻辑，并内置公开调试模式安全预警横幅。
 - **2026-06-24** 🚀 **v0.1.10-s1 — 中文本地化深度精细化与A股量化工作站专注**：精细化汉化了所有核心页面（欢迎页示例与模板提示词、Alpha 因子库分类与主题、相关性矩阵热力图及设置页）。清理了境外券商直连 SDK 依赖，聚焦 A股及港股量化投研。确立了本地敏感数据与凭证的 Gitignore 防御性隔离机制，并落地的双子代理（开发/测试）协同测试与交付验收 SOP。
 - **2026-06-23** 🛡️ **本地 API CSRF 加固**：恶意网页不再能对环回（loopback）API 发起不安全的跨站请求（POST/PUT/DELETE）——CORS 只挡响应读取、挡不住副作用，因此环回 dev-mode 信任现在会在放行**之前**先对不安全方法应用既有的跨站防护。安全方法与本地 CLI / 非浏览器上传不受影响（[#293](https://github.com/HKUDS/Vibe-Trading/pull/293)，感谢 @Hinotoi-agent）。
 - **2026-06-22** 🔧 **Live 授权 OAuth 修复 + Alpha Zoo 标题修复**：`connector authorize` 现在能在长达数分钟的券商登录期间保持 OAuth 握手不断开（可通过 `VIBE_LIVE_AUTHORIZE_TIMEOUT_SECONDS` 调整），且重试时不再另起一个抢占式回调服务器，token 终于能正确保存（[#281](https://github.com/HKUDS/Vibe-Trading/pull/281)，关闭 [#259](https://github.com/HKUDS/Vibe-Trading/issues/259)，感谢 @Robin1987China）。Alpha Zoo 页面不再把 alpha 数量渲染两次（[#287](https://github.com/HKUDS/Vibe-Trading/pull/287)，关闭 [#286](https://github.com/HKUDS/Vibe-Trading/issues/286)，感谢 @digger-yu）。定时研究也补上了端到端使用文档（[#288](https://github.com/HKUDS/Vibe-Trading/pull/288)）。
