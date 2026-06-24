@@ -307,7 +307,7 @@ function BrowseView() {
             <option value="">{i18n.t("alphaZoo.allThemes")}</option>
             {themeOptions.map((tname) => (
               <option key={tname} value={tname}>
-                {tname}
+                {i18n.t("alphaZoo.themes." + tname, { defaultValue: tname })}
               </option>
             ))}
           </select>
@@ -421,10 +421,10 @@ function BrowseView() {
                     </td>
                     <td className="px-4 py-2 text-xs">{a.zoo}</td>
                     <td className="px-4 py-2 text-xs text-muted-foreground">
-                      {(a.theme || []).join(", ") || "—"}
+                      {(a.theme || []).map((t) => i18n.t("alphaZoo.themes." + t, { defaultValue: t })).join(", ") || "—"}
                     </td>
                     <td className="px-4 py-2 text-xs text-muted-foreground hidden md:table-cell">
-                      {(a.universe || []).join(", ") || "—"}
+                      {(a.universe || []).map((u) => i18n.t("alphaZoo.universeOption." + u, { defaultValue: u })).join(", ") || "—"}
                     </td>
                     <td className="px-4 py-2 text-right font-mono tabular-nums text-xs">
                       {a.decay_horizon ?? "—"}
@@ -571,8 +571,26 @@ function DetailView({ alphaId }: DetailProps) {
         <div className="border rounded-xl overflow-hidden">
           <table className="w-full text-sm">
             <tbody>
-              <MetaRow label={i18n.t("alphaZoo.theme")} value={metaString(meta, "theme")} />
-              <MetaRow label={i18n.t("alphaZoo.universe")} value={metaString(meta, "universe")} />
+              <MetaRow
+                label={i18n.t("alphaZoo.theme")}
+                value={
+                  Array.isArray(meta.theme)
+                    ? meta.theme.map((t: string) => i18n.t("alphaZoo.themes." + t, { defaultValue: t })).join(", ")
+                    : typeof meta.theme === "string"
+                    ? i18n.t("alphaZoo.themes." + meta.theme, { defaultValue: meta.theme })
+                    : "—"
+                }
+              />
+              <MetaRow
+                label={i18n.t("alphaZoo.universe")}
+                value={
+                  Array.isArray(meta.universe)
+                    ? meta.universe.map((u: string) => i18n.t("alphaZoo.universeOption." + u, { defaultValue: u })).join(", ")
+                    : typeof meta.universe === "string"
+                    ? i18n.t("alphaZoo.universeOption." + meta.universe, { defaultValue: meta.universe })
+                    : "—"
+                }
+              />
               <MetaRow label={i18n.t("alphaZoo.frequency")} value={metaString(meta, "frequency")} />
               <MetaRow label={i18n.t("alphaZoo.decayHorizon")} value={metaString(meta, "decay_horizon")} />
               <MetaRow label={i18n.t("alphaZoo.minWarmupBars")} value={metaString(meta, "min_warmup_bars")} />
@@ -933,7 +951,7 @@ function ResultPanel({ result }: { result: AlphaBenchResult }) {
       grid: { left: 8, right: 8, top: 32, bottom: 8, containLabel: true },
       xAxis: {
         type: "category",
-        data: themes,
+        data: themes.map((t) => i18n.t("alphaZoo.themes." + t, { defaultValue: t })),
         axisLine: { lineStyle: { color: theme.axisColor } },
         axisLabel: { color: theme.textColor, fontSize: 10, rotate: themes.length > 6 ? 30 : 0 },
       },
@@ -1032,7 +1050,9 @@ function TopTable({ title, rows }: { title: string; rows: AlphaBenchTopRow[] }) 
                 </td>
                 <td className="px-4 py-2 text-right font-mono tabular-nums text-xs">{fmtNum(r.ic_mean)}</td>
                 <td className="px-4 py-2 text-right font-mono tabular-nums text-xs">{fmtNum(r.ir)}</td>
-                <td className="px-4 py-2 text-xs text-muted-foreground">{(r.theme || []).join(", ") || "—"}</td>
+                <td className="px-4 py-2 text-xs text-muted-foreground">
+                  {(r.theme || []).map((t) => i18n.t("alphaZoo.themes." + t, { defaultValue: t })).join(", ") || "—"}
+                </td>
                 <td className="px-4 py-2 text-xs">
                   <CategoryBadge category={r.category} />
                 </td>

@@ -512,7 +512,25 @@
     "universeOption": {
       "csi300": "CSI 300 (China A)",
       "sp500": "S&P 500 (US)",
-      "btc-usdt": "BTC-USDT (Crypto)"
+      "btc-usdt": "BTC-USDT (Crypto)",
+      "equity_cn": "China A-Shares",
+      "equity_us": "US Equities",
+      "equity_hk": "HK Equities",
+      "crypto": "Crypto",
+      "futures": "Futures"
+    },
+    "themes": {
+      "momentum": "Momentum",
+      "reversal": "Reversal",
+      "volume": "Volume",
+      "volatility": "Volatility",
+      "quality": "Quality",
+      "value": "Value",
+      "liquidity": "Liquidity",
+      "microstructure": "Microstructure",
+      "sentiment": "Sentiment",
+      "growth": "Growth",
+      "leverage": "Leverage"
     },
     "compareTooltip": "Tick 2+ alphas below, then compare them head-to-head",
     "loadingAlpha": "Loading {{id}}…",

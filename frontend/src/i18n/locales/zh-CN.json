@@ -512,7 +512,25 @@
     "universeOption": {
       "csi300": "沪深 300（A 股）",
       "sp500": "标普 500（美股）",
-      "btc-usdt": "BTC-USDT（加密货币）"
+      "btc-usdt": "BTC-USDT（加密货币）",
+      "equity_cn": "A 股",
+      "equity_us": "美股",
+      "equity_hk": "港股",
+      "crypto": "加密货币",
+      "futures": "期货"
+    },
+    "themes": {
+      "momentum": "动量",
+      "reversal": "反转",
+      "volume": "成交量",
+      "volatility": "波动率",
+      "quality": "质量",
+      "value": "价值",
+      "liquidity": "流动性",
+      "microstructure": "微观结构",
+      "sentiment": "情绪",
+      "growth": "成长",
+      "leverage": "杠杆"
     },
     "compareTooltip": "在下方勾选 2 个或更多 Alpha，然后进行头对头对比",
     "loadingAlpha": "正在加载 {{id}}…",
