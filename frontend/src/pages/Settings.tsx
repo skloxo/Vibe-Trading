@@ -806,19 +806,6 @@ export function Settings() {
                 </div>
               </label>
 
-              <label className="grid gap-1.5">
-                <span className={labelClass}>{i18n.t("settings.feishuAllowedUsers")}</span>
-                <input
-                  type="text"
-                  value={chanAllowedUsers}
-                  onChange={(e) => setChanAllowedUsers(e.target.value)}
-                  className={fieldClass}
-                  disabled={chanAllowAllUsers}
-                  placeholder="ou_xxxxxxxx,ou_yyyyyyyy"
-                />
-                <span className={hintClass}>{i18n.t("settings.feishuAllowedUsersDesc")}</span>
-              </label>
-
               <div className="flex items-center gap-2">
                 <input
                   type="checkbox"
@@ -831,6 +818,25 @@ export function Settings() {
                   {i18n.t("settings.feishuAllowAllUsers")}
                 </label>
               </div>
+
+              {!chanAllowAllUsers ? (
+                <label className="grid gap-1.5">
+                  <span className={labelClass}>{i18n.t("settings.feishuAllowedUsers")}</span>
+                  <input
+                    type="text"
+                    value={chanAllowedUsers}
+                    onChange={(e) => setChanAllowedUsers(e.target.value)}
+                    className={fieldClass}
+                    placeholder="ou_xxxxxxxx,ou_yyyyyyyy"
+                  />
+                  <span className={hintClass}>{i18n.t("settings.feishuAllowedUsersDesc")}</span>
+                </label>
+              ) : (
+                <div className="rounded-md bg-amber-500/10 p-3.5 text-xs text-amber-500 border border-amber-500/20 leading-relaxed">
+                  ⚠️ <strong>{i18n.t("settings.publicDebugMode")}</strong>：
+                  {i18n.t("settings.publicDebugModeDesc")}
+                </div>
+              )}
 
               <div className="flex items-center gap-2">
                 <input

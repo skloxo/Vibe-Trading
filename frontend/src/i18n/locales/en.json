@@ -299,6 +299,8 @@
     "feishuAllowedUsers": "Allowed Users (OpenIDs)",
     "feishuAllowedUsersDesc": "Comma-separated list of Feishu open_ids allowed to interact (highly recommended). To get your OpenID, send '/myid' or any message to this Bot in Feishu.",
     "feishuAllowAllUsers": "Allow all users in group chat to interact (debug only)",
+    "publicDebugMode": "Public Debug Mode Enabled",
+    "publicDebugModeDesc": "Any Feishu user who can reach this Bot will be allowed to interact without whitelist validation. Please do not use this in production.",
     "channelSaved": "Feishu channel saved successfully",
     "channelDeleted": "Feishu channel deleted successfully",
     "channelSaveFailed": "Failed to save Feishu channel: {{message}}",
