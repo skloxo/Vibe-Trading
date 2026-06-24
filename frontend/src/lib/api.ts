@@ -143,6 +143,22 @@ export const api = {
       method: "PUT",
       body: JSON.stringify(settings),
     }),
+  getFeatureFlags: () => request<FeatureFlagsResponse>("/settings/feature-flags"),
+  getFeishuChannels: () => request<FeishuChannel[]>("/settings/platforms/feishu/channels"),
+  createFeishuChannel: (channel: CreateFeishuChannelRequest) =>
+    request<FeishuChannel>("/settings/platforms/feishu/channels", {
+      method: "POST",
+      body: JSON.stringify(channel),
+    }),
+  updateFeishuChannel: (id: string, channel: UpdateFeishuChannelRequest) =>
+    request<FeishuChannel>(`/settings/platforms/feishu/channels/${id}`, {
+      method: "PUT",
+      body: JSON.stringify(channel),
+    }),
+  deleteFeishuChannel: (id: string) =>
+    request<{ status: string }>(`/settings/platforms/feishu/channels/${id}`, {
+      method: "DELETE",
+    }),
 
   // Alpha Zoo API
   listAlphas: (params: AlphaListParams = {}) => {
@@ -264,9 +280,41 @@ export interface UpdateLLMSettingsRequest {
   reasoning_effort?: string;
 }
 
+export interface FeishuChannel {
+  id: string;
+  name: string;
+  app_id: string;
+  app_secret_configured: boolean;
+  allowed_users: string;
+  allow_all_users: boolean;
+  enabled: boolean;
+}
+
+export interface CreateFeishuChannelRequest {
+  name: string;
+  app_id: string;
+  app_secret: string;
+  allowed_users?: string;
+  allow_all_users: boolean;
+  enabled: boolean;
+}
+
+export interface UpdateFeishuChannelRequest {
+  name: string;
+  app_id: string;
+  app_secret?: string;
+  allowed_users?: string;
+  allow_all_users: boolean;
+  enabled: boolean;
+}
+
 export interface DataSourceSettings {
   tushare_token_configured: boolean;
   tushare_token_hint?: string | null;
+  iwencai_key_configured: boolean;
+  iwencai_key_hint?: string | null;
+  fred_api_key_configured: boolean;
+  fred_api_key_hint?: string | null;
   baostock_supported: boolean;
   baostock_installed: boolean;
   baostock_message: string;
@@ -276,6 +324,17 @@ export interface DataSourceSettings {
 export interface UpdateDataSourceSettingsRequest {
   tushare_token?: string;
   clear_tushare_token?: boolean;
+  iwencai_key?: string;
+  clear_iwencai_key?: boolean;
+  fred_api_key?: string;
+  clear_fred_api_key?: boolean;
+}
+
+export interface FeatureFlagsResponse {
+  shell_tools_enabled: boolean;
+  scheduler_enabled: boolean;
+  session_runtime_enabled: boolean;
+  env_path: string;
 }
 
 // --- Types matching backend API contracts ---

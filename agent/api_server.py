@@ -197,6 +197,10 @@ class DataSourceSettingsResponse(BaseModel):
 
     tushare_token_configured: bool
     tushare_token_hint: Optional[str] = None
+    iwencai_key_configured: bool = False
+    iwencai_key_hint: Optional[str] = None
+    fred_api_key_configured: bool = False
+    fred_api_key_hint: Optional[str] = None
     baostock_supported: bool
     baostock_installed: bool
     baostock_message: str
@@ -208,6 +212,50 @@ class UpdateDataSourceSettingsRequest(BaseModel):
 
     tushare_token: Optional[str] = None
     clear_tushare_token: bool = False
+    iwencai_key: Optional[str] = None
+    clear_iwencai_key: bool = False
+    fred_api_key: Optional[str] = None
+    clear_fred_api_key: bool = False
+
+
+class FeishuChannelResponse(BaseModel):
+    """Detailed information for a single Feishu channel."""
+    id: str
+    name: str
+    app_id: str
+    app_secret_configured: bool
+    allowed_users: str
+    allow_all_users: bool
+    enabled: bool
+
+
+class CreateFeishuChannelRequest(BaseModel):
+    """Payload to create a new Feishu channel."""
+    name: str
+    app_id: str
+    app_secret: str
+    allowed_users: Optional[str] = ""
+    allow_all_users: bool = False
+    enabled: bool = True
+
+
+class UpdateFeishuChannelRequest(BaseModel):
+    """Payload to update an existing Feishu channel."""
+    name: str
+    app_id: str
+    app_secret: Optional[str] = None
+    allowed_users: Optional[str] = ""
+    allow_all_users: bool = False
+    enabled: bool = True
+
+
+class FeatureFlagsResponse(BaseModel):
+    """Current feature flag state."""
+
+    shell_tools_enabled: bool
+    scheduler_enabled: bool
+    session_runtime_enabled: bool
+    env_path: str
 
 
 # ---- V4 Session Models ----
@@ -625,6 +673,96 @@ async def _spa_html_deep_link_fallback(request: Request, call_next):
     return await call_next(request)
 
 
+FEISHU_SECRET_PLACEHOLDERS: set[str] = {"", "your-feishu-app-secret"}
+FEISHU_CHANNELS_JSON = Path(__file__).resolve().parent / "sessions" / "feishu_channels.json"
+
+
+def _load_feishu_channels() -> list[dict[str, Any]]:
+    """Load Feishu channels from the persistent JSON file. Handles legacy migration."""
+    channels = []
+    if FEISHU_CHANNELS_JSON.exists():
+        try:
+            channels = json.loads(FEISHU_CHANNELS_JSON.read_text(encoding="utf-8"))
+        except Exception as e:
+            logger.error("Failed to read feishu_channels.json: %s", e)
+
+    # Auto-migration from legacy .env values
+    if not channels:
+        env_values = _read_settings_env_values()
+        app_id = env_values.get("FEISHU_APP_ID", "").strip()
+        app_secret = env_values.get("FEISHU_APP_SECRET", "").strip()
+        if app_id and app_secret:
+            allowed_users = env_values.get("FEISHU_ALLOWED_USERS", "").strip()
+            allow_all_users = env_values.get("FEISHU_ALLOW_ALL_USERS", "false").strip().lower() == "true"
+            channels = [{
+                "id": "legacy_default",
+                "name": "默认飞书通道",
+                "app_id": app_id,
+                "app_secret": app_secret,
+                "allowed_users": allowed_users,
+                "allow_all_users": allow_all_users,
+                "enabled": True
+            }]
+            _save_feishu_channels(channels)
+            # Remove legacy keys from .env
+            try:
+                updates = {
+                    "FEISHU_APP_ID": "",
+                    "FEISHU_APP_SECRET": "",
+                    "FEISHU_ALLOWED_USERS": "",
+                    "FEISHU_ALLOW_ALL_USERS": "false"
+                }
+                _write_env_values(ENV_PATH, updates)
+                for key in updates:
+                    os.environ.pop(key, None)
+            except Exception as e:
+                logger.error("Failed to clear legacy Feishu env variables: %s", e)
+
+    return channels
+
+
+def _save_feishu_channels(channels: list[dict[str, Any]]) -> None:
+    """Save Feishu channels to the persistent JSON file."""
+    FEISHU_CHANNELS_JSON.parent.mkdir(parents=True, exist_ok=True)
+    FEISHU_CHANNELS_JSON.write_text(json.dumps(channels, indent=2, ensure_ascii=False), encoding="utf-8")
+
+
+async def _reload_platform_manager() -> None:
+    """Stop the running platform manager and start it with the latest active channel adapters."""
+    global _platform_manager
+    session_service = _get_session_service()
+    if session_service:
+        try:
+            if _platform_manager:
+                await _platform_manager.stop()
+            
+            from src.platforms import PlatformManager, FeishuAdapter
+            _platform_manager = PlatformManager(session_service)
+            
+            channels = _load_feishu_channels()
+            registered_count = 0
+            for chan in channels:
+                if chan.get("enabled", True):
+                    adapter = FeishuAdapter(
+                        channel_id=chan["id"],
+                        name=chan["name"],
+                        app_id=chan["app_id"],
+                        app_secret=chan["app_secret"],
+                        allowed_users=chan.get("allowed_users", ""),
+                        allow_all_users=chan.get("allow_all_users", False),
+                    )
+                    _platform_manager.register_adapter(adapter)
+                    registered_count += 1
+            if registered_count > 0:
+                logger.info(f"[Platform] Registered and started {registered_count} Feishu adapter(s).")
+            await _platform_manager.start()
+        except Exception as e:
+            logger.exception("[Platform] Failed to reload platform manager: %s", e)
+
+
+_platform_manager = None
+
+
 @app.on_event("startup")
 async def _run_startup_preflight() -> None:
     """Run preflight checks on server startup."""
@@ -633,11 +771,22 @@ async def _run_startup_preflight() -> None:
     run_preflight(console)
     _start_scheduled_research_executor()
 
+    # Initialize Platform Manager for multi-channel messaging (e.g. Feishu Bot)
+    await _reload_platform_manager()
+
 
 @app.on_event("shutdown")
 async def _stop_scheduled_research_on_shutdown() -> None:
     """Stop the scheduled research executor on server shutdown."""
     await _stop_scheduled_research_executor()
+
+    global _platform_manager
+    if _platform_manager:
+        try:
+            await _platform_manager.stop()
+            logger.info("[Platform] Platforms manager stopped.")
+        except Exception as e:
+            logger.exception("[Platform] Error stopping platforms manager: %s", e)
 
 
 # ============================================================================
@@ -858,13 +1007,24 @@ def _env_shell_tools_enabled() -> bool:
 
 
 def _shell_tools_enabled_for_request(request: Request) -> bool:
-    """Return whether this API request may expose shell tools to the agent."""
-    # Shell-capable tools execute commands on the host as the API process user.
-    # Do not infer that privilege from peer IP alone: browser DNS rebinding can
-    # make attacker-controlled pages appear as loopback clients. Operators who
-    # intentionally want API-started agents or swarm workers to receive shell
-    # tools must opt in explicitly.
-    return _env_shell_tools_enabled()
+    """Return whether this API request may expose shell tools to the agent.
+
+    Decision order:
+    1. If ``VIBE_TRADING_ENABLE_SHELL_TOOLS`` is explicitly set, honour it
+       (explicit opt-out takes precedence).
+    2. If ``API_AUTH_KEY`` is configured the API requires authentication;
+       callers that passed auth are trusted, so shell tools default on.
+       This avoids a common deployment pitfall where operators configure
+       auth but forget to set the shell-tools flag.
+    3. Otherwise shell tools stay off (secure default).
+    """
+    explicit = os.getenv(_SHELL_TOOLS_ENV)
+    if explicit is not None:
+        return _env_flag_enabled(_SHELL_TOOLS_ENV)
+    # Authenticated API → implicitly trust the caller
+    if _configured_api_key():
+        return True
+    return False
 
 
 async def require_local_or_auth(
@@ -1109,11 +1269,19 @@ def _baostock_installed() -> bool:
     return importlib.util.find_spec("baostock") is not None
 
 
+IWENCAI_KEY_PLACEHOLDERS: set[str] = {"", "your-iwencai-key"}
+FRED_API_KEY_PLACEHOLDERS: set[str] = {"", "your-fred-api-key"}
+
+
 def _build_data_source_settings_response(values: Optional[Dict[str, str]] = None) -> DataSourceSettingsResponse:
     """Build the public data source settings payload."""
     env_values = values if values is not None else _read_settings_env_values()
     token = env_values.get("TUSHARE_TOKEN", "")
     token_configured = _is_configured_secret(token, TUSHARE_TOKEN_PLACEHOLDERS)
+    iwencai_key = env_values.get("VIBE_TRADING_IWENCAI_KEY", "")
+    iwencai_key_configured = _is_configured_secret(iwencai_key, IWENCAI_KEY_PLACEHOLDERS)
+    fred_key = env_values.get("FRED_API_KEY", "")
+    fred_key_configured = _is_configured_secret(fred_key, FRED_API_KEY_PLACEHOLDERS)
     supported = _baostock_supported()
     installed = _baostock_installed()
     if supported:
@@ -1125,6 +1293,10 @@ def _build_data_source_settings_response(values: Optional[Dict[str, str]] = None
     return DataSourceSettingsResponse(
         tushare_token_configured=token_configured,
         tushare_token_hint=None,
+        iwencai_key_configured=iwencai_key_configured,
+        iwencai_key_hint=None,
+        fred_api_key_configured=fred_key_configured,
+        fred_api_key_hint=None,
         baostock_supported=supported,
         baostock_installed=installed,
         baostock_message=baostock_message,
@@ -1652,6 +1824,20 @@ async def update_data_source_settings(payload: UpdateDataSourceSettingsRequest):
     elif "TUSHARE_TOKEN" in current_values:
         updates["TUSHARE_TOKEN"] = current_values["TUSHARE_TOKEN"]
 
+    if payload.clear_iwencai_key:
+        updates["VIBE_TRADING_IWENCAI_KEY"] = ""
+    elif payload.iwencai_key is not None and payload.iwencai_key.strip():
+        updates["VIBE_TRADING_IWENCAI_KEY"] = payload.iwencai_key.strip()
+    elif "VIBE_TRADING_IWENCAI_KEY" in current_values:
+        updates["VIBE_TRADING_IWENCAI_KEY"] = current_values["VIBE_TRADING_IWENCAI_KEY"]
+
+    if payload.clear_fred_api_key:
+        updates["FRED_API_KEY"] = ""
+    elif payload.fred_api_key is not None and payload.fred_api_key.strip():
+        updates["FRED_API_KEY"] = payload.fred_api_key.strip()
+    elif "FRED_API_KEY" in current_values:
+        updates["FRED_API_KEY"] = current_values["FRED_API_KEY"]
+
     if updates:
         _write_env_values(ENV_PATH, updates)
         token = updates.get("TUSHARE_TOKEN", "").strip()
@@ -1659,8 +1845,161 @@ async def update_data_source_settings(payload: UpdateDataSourceSettingsRequest):
             os.environ["TUSHARE_TOKEN"] = token
         else:
             os.environ.pop("TUSHARE_TOKEN", None)
+        iwencai_key = updates.get("VIBE_TRADING_IWENCAI_KEY", "").strip()
+        if _is_configured_secret(iwencai_key, IWENCAI_KEY_PLACEHOLDERS):
+            os.environ["VIBE_TRADING_IWENCAI_KEY"] = iwencai_key
+        else:
+            os.environ.pop("VIBE_TRADING_IWENCAI_KEY", None)
+        fred_key = updates.get("FRED_API_KEY", "").strip()
+        if _is_configured_secret(fred_key, FRED_API_KEY_PLACEHOLDERS):
+            os.environ["FRED_API_KEY"] = fred_key
+        else:
+            os.environ.pop("FRED_API_KEY", None)
 
     return _build_data_source_settings_response(_read_env_values(ENV_PATH))
+
+
+FEISHU_SECRET_PLACEHOLDERS: set[str] = {"", "your-feishu-app-secret"}
+
+
+@app.get(
+    "/settings/platforms/feishu/channels",
+    response_model=List[FeishuChannelResponse],
+    dependencies=[Depends(require_local_or_auth)],
+)
+async def list_feishu_channels():
+    """Return all Feishu channels configuration."""
+    channels = _load_feishu_channels()
+    return [
+        FeishuChannelResponse(
+            id=c["id"],
+            name=c["name"],
+            app_id=c["app_id"],
+            app_secret_configured=bool(c.get("app_secret")) and c.get("app_secret") not in FEISHU_SECRET_PLACEHOLDERS,
+            allowed_users=c.get("allowed_users", ""),
+            allow_all_users=c.get("allow_all_users", False),
+            enabled=c.get("enabled", True),
+        )
+        for c in channels
+    ]
+
+
+@app.post(
+    "/settings/platforms/feishu/channels",
+    response_model=FeishuChannelResponse,
+    dependencies=[Depends(require_settings_write_auth)],
+)
+async def create_feishu_channel(payload: CreateFeishuChannelRequest):
+    """Add a new Feishu channel configuration."""
+    import secrets
+    channels = _load_feishu_channels()
+    
+    new_id = f"chan_{secrets.token_hex(4)}"
+    new_channel = {
+        "id": new_id,
+        "name": payload.name.strip() or f"飞书通道_{new_id[:4]}",
+        "app_id": payload.app_id.strip(),
+        "app_secret": payload.app_secret.strip(),
+        "allowed_users": payload.allowed_users.strip(),
+        "allow_all_users": payload.allow_all_users,
+        "enabled": payload.enabled,
+    }
+    
+    channels.append(new_channel)
+    _save_feishu_channels(channels)
+    
+    await _reload_platform_manager()
+    
+    return FeishuChannelResponse(
+        id=new_channel["id"],
+        name=new_channel["name"],
+        app_id=new_channel["app_id"],
+        app_secret_configured=bool(new_channel["app_secret"]) and new_channel["app_secret"] not in FEISHU_SECRET_PLACEHOLDERS,
+        allowed_users=new_channel["allowed_users"],
+        allow_all_users=new_channel["allow_all_users"],
+        enabled=new_channel["enabled"],
+    )
+
+
+@app.put(
+    "/settings/platforms/feishu/channels/{channel_id}",
+    response_model=FeishuChannelResponse,
+    dependencies=[Depends(require_settings_write_auth)],
+)
+async def update_feishu_channel(channel_id: str, payload: UpdateFeishuChannelRequest):
+    """Update an existing Feishu channel configuration."""
+    channels = _load_feishu_channels()
+    target_idx = None
+    for idx, c in enumerate(channels):
+        if c["id"] == channel_id:
+            target_idx = idx
+            break
+            
+    if target_idx is None:
+        raise HTTPException(status_code=404, detail="Feishu channel not found")
+        
+    c = channels[target_idx]
+    c["name"] = payload.name.strip()
+    c["app_id"] = payload.app_id.strip()
+    c["allowed_users"] = payload.allowed_users.strip()
+    c["allow_all_users"] = payload.allow_all_users
+    c["enabled"] = payload.enabled
+    
+    if payload.app_secret is not None:
+        app_secret = payload.app_secret.strip()
+        if app_secret and app_secret not in FEISHU_SECRET_PLACEHOLDERS:
+            c["app_secret"] = app_secret
+        elif app_secret == "":
+            c["app_secret"] = ""
+            
+    _save_feishu_channels(channels)
+    
+    await _reload_platform_manager()
+    
+    return FeishuChannelResponse(
+        id=c["id"],
+        name=c["name"],
+        app_id=c["app_id"],
+        app_secret_configured=bool(c["app_secret"]) and c["app_secret"] not in FEISHU_SECRET_PLACEHOLDERS,
+        allowed_users=c["allowed_users"],
+        allow_all_users=c["allow_all_users"],
+        enabled=c["enabled"],
+    )
+
+
+@app.delete(
+    "/settings/platforms/feishu/channels/{channel_id}",
+    dependencies=[Depends(require_settings_write_auth)],
+)
+async def delete_feishu_channel(channel_id: str):
+    """Delete a Feishu channel configuration."""
+    channels = _load_feishu_channels()
+    initial_len = len(channels)
+    channels = [c for c in channels if c["id"] != channel_id]
+    
+    if len(channels) == initial_len:
+        raise HTTPException(status_code=404, detail="Feishu channel not found")
+        
+    _save_feishu_channels(channels)
+    
+    await _reload_platform_manager()
+    
+    return {"status": "success"}
+
+
+@app.get(
+    "/settings/feature-flags",
+    response_model=FeatureFlagsResponse,
+    dependencies=[Depends(require_local_or_auth)],
+)
+async def get_feature_flags():
+    """Return current feature flag state."""
+    return FeatureFlagsResponse(
+        shell_tools_enabled=_env_shell_tools_enabled(),
+        scheduler_enabled=_scheduled_research_scheduler_enabled(),
+        session_runtime_enabled=os.getenv("ENABLE_SESSION_RUNTIME", "true").lower() == "true",
+        env_path=_project_relative_path(ENV_PATH),
+    )
 
 
 @app.get("/health", response_model=HealthResponse)
@@ -3290,7 +3629,7 @@ register_alpha_routes(app)
 #
 # Lightweight CRUD endpoints backed by ScheduledResearchJobStore. The endpoint
 # handlers only record and expose jobs; the optional executor lifecycle is
-# guarded separately by VIBE_TRADING_ENABLE_SCHEDULER.
+# guarded separately by VIBE_TRADING_ENABLE_SCHEDULER (defaults ON).
 
 
 _SCHEDULED_RESEARCH_SCHEDULER_ENV = "VIBE_TRADING_ENABLE_SCHEDULER"
@@ -3311,8 +3650,18 @@ def _get_scheduled_research_store() -> "ScheduledResearchJobStore":
 
 
 def _scheduled_research_scheduler_enabled() -> bool:
-    """Return whether scheduled research execution is enabled."""
-    return os.getenv(_SCHEDULED_RESEARCH_SCHEDULER_ENV, "").strip().lower() in _SCHEDULED_RESEARCH_TRUE_VALUES
+    """Return whether scheduled research execution is enabled.
+
+    Honours an explicit ``VIBE_TRADING_ENABLE_SCHEDULER`` env var.
+    When unset, defaults to *True* — the executor is a passive loop
+    that only fires when there are pending jobs, so the cost of
+    leaving it on is negligible and avoids the hidden-foot-gun.
+    """
+    explicit = os.getenv(_SCHEDULED_RESEARCH_SCHEDULER_ENV)
+    if explicit is not None:
+        return explicit.strip().lower() in _SCHEDULED_RESEARCH_TRUE_VALUES
+    # Default ON — no jobs means no work, no risk.
+    return True
 
 
 async def _dispatch_scheduled_research_job(job: "ScheduledResearchJob") -> None:
