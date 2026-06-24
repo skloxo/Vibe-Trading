@@ -218,6 +218,37 @@ class UpdateDataSourceSettingsRequest(BaseModel):
     clear_fred_api_key: bool = False
 
 
+class FeishuChannelResponse(BaseModel):
+    """Detailed information for a single Feishu channel."""
+    id: str
+    name: str
+    app_id: str
+    app_secret_configured: bool
+    allowed_users: str
+    allow_all_users: bool
+    enabled: bool
+
+
+class CreateFeishuChannelRequest(BaseModel):
+    """Payload to create a new Feishu channel."""
+    name: str
+    app_id: str
+    app_secret: str
+    allowed_users: Optional[str] = ""
+    allow_all_users: bool = False
+    enabled: bool = True
+
+
+class UpdateFeishuChannelRequest(BaseModel):
+    """Payload to update an existing Feishu channel."""
+    name: str
+    app_id: str
+    app_secret: Optional[str] = None
+    allowed_users: Optional[str] = ""
+    allow_all_users: bool = False
+    enabled: bool = True
+
+
 class FeatureFlagsResponse(BaseModel):
     """Current feature flag state."""
 
@@ -642,6 +673,96 @@ async def _spa_html_deep_link_fallback(request: Request, call_next):
     return await call_next(request)
 
 
+FEISHU_SECRET_PLACEHOLDERS: set[str] = {"", "your-feishu-app-secret"}
+FEISHU_CHANNELS_JSON = Path(__file__).resolve().parent / "sessions" / "feishu_channels.json"
+
+
+def _load_feishu_channels() -> list[dict[str, Any]]:
+    """Load Feishu channels from the persistent JSON file. Handles legacy migration."""
+    channels = []
+    if FEISHU_CHANNELS_JSON.exists():
+        try:
+            channels = json.loads(FEISHU_CHANNELS_JSON.read_text(encoding="utf-8"))
+        except Exception as e:
+            logger.error("Failed to read feishu_channels.json: %s", e)
+
+    # Auto-migration from legacy .env values
+    if not channels:
+        env_values = _read_settings_env_values()
+        app_id = env_values.get("FEISHU_APP_ID", "").strip()
+        app_secret = env_values.get("FEISHU_APP_SECRET", "").strip()
+        if app_id and app_secret:
+            allowed_users = env_values.get("FEISHU_ALLOWED_USERS", "").strip()
+            allow_all_users = env_values.get("FEISHU_ALLOW_ALL_USERS", "false").strip().lower() == "true"
+            channels = [{
+                "id": "legacy_default",
+                "name": "默认飞书通道",
+                "app_id": app_id,
+                "app_secret": app_secret,
+                "allowed_users": allowed_users,
+                "allow_all_users": allow_all_users,
+                "enabled": True
+            }]
+            _save_feishu_channels(channels)
+            # Remove legacy keys from .env
+            try:
+                updates = {
+                    "FEISHU_APP_ID": "",
+                    "FEISHU_APP_SECRET": "",
+                    "FEISHU_ALLOWED_USERS": "",
+                    "FEISHU_ALLOW_ALL_USERS": "false"
+                }
+                _write_env_values(ENV_PATH, updates)
+                for key in updates:
+                    os.environ.pop(key, None)
+            except Exception as e:
+                logger.error("Failed to clear legacy Feishu env variables: %s", e)
+
+    return channels
+
+
+def _save_feishu_channels(channels: list[dict[str, Any]]) -> None:
+    """Save Feishu channels to the persistent JSON file."""
+    FEISHU_CHANNELS_JSON.parent.mkdir(parents=True, exist_ok=True)
+    FEISHU_CHANNELS_JSON.write_text(json.dumps(channels, indent=2, ensure_ascii=False), encoding="utf-8")
+
+
+async def _reload_platform_manager() -> None:
+    """Stop the running platform manager and start it with the latest active channel adapters."""
+    global _platform_manager
+    session_service = _get_session_service()
+    if session_service:
+        try:
+            if _platform_manager:
+                await _platform_manager.stop()
+            
+            from src.platforms import PlatformManager, FeishuAdapter
+            _platform_manager = PlatformManager(session_service)
+            
+            channels = _load_feishu_channels()
+            registered_count = 0
+            for chan in channels:
+                if chan.get("enabled", True):
+                    adapter = FeishuAdapter(
+                        channel_id=chan["id"],
+                        name=chan["name"],
+                        app_id=chan["app_id"],
+                        app_secret=chan["app_secret"],
+                        allowed_users=chan.get("allowed_users", ""),
+                        allow_all_users=chan.get("allow_all_users", False),
+                    )
+                    _platform_manager.register_adapter(adapter)
+                    registered_count += 1
+            if registered_count > 0:
+                logger.info(f"[Platform] Registered and started {registered_count} Feishu adapter(s).")
+            await _platform_manager.start()
+        except Exception as e:
+            logger.exception("[Platform] Failed to reload platform manager: %s", e)
+
+
+_platform_manager = None
+
+
 @app.on_event("startup")
 async def _run_startup_preflight() -> None:
     """Run preflight checks on server startup."""
@@ -650,11 +771,22 @@ async def _run_startup_preflight() -> None:
     run_preflight(console)
     _start_scheduled_research_executor()
 
+    # Initialize Platform Manager for multi-channel messaging (e.g. Feishu Bot)
+    await _reload_platform_manager()
+
 
 @app.on_event("shutdown")
 async def _stop_scheduled_research_on_shutdown() -> None:
     """Stop the scheduled research executor on server shutdown."""
     await _stop_scheduled_research_executor()
+
+    global _platform_manager
+    if _platform_manager:
+        try:
+            await _platform_manager.stop()
+            logger.info("[Platform] Platforms manager stopped.")
+        except Exception as e:
+            logger.exception("[Platform] Error stopping platforms manager: %s", e)
 
 
 # ============================================================================
@@ -1725,6 +1857,134 @@ async def update_data_source_settings(payload: UpdateDataSourceSettingsRequest):
             os.environ.pop("FRED_API_KEY", None)
 
     return _build_data_source_settings_response(_read_env_values(ENV_PATH))
+
+
+FEISHU_SECRET_PLACEHOLDERS: set[str] = {"", "your-feishu-app-secret"}
+
+
+@app.get(
+    "/settings/platforms/feishu/channels",
+    response_model=List[FeishuChannelResponse],
+    dependencies=[Depends(require_local_or_auth)],
+)
+async def list_feishu_channels():
+    """Return all Feishu channels configuration."""
+    channels = _load_feishu_channels()
+    return [
+        FeishuChannelResponse(
+            id=c["id"],
+            name=c["name"],
+            app_id=c["app_id"],
+            app_secret_configured=bool(c.get("app_secret")) and c.get("app_secret") not in FEISHU_SECRET_PLACEHOLDERS,
+            allowed_users=c.get("allowed_users", ""),
+            allow_all_users=c.get("allow_all_users", False),
+            enabled=c.get("enabled", True),
+        )
+        for c in channels
+    ]
+
+
+@app.post(
+    "/settings/platforms/feishu/channels",
+    response_model=FeishuChannelResponse,
+    dependencies=[Depends(require_settings_write_auth)],
+)
+async def create_feishu_channel(payload: CreateFeishuChannelRequest):
+    """Add a new Feishu channel configuration."""
+    import secrets
+    channels = _load_feishu_channels()
+    
+    new_id = f"chan_{secrets.token_hex(4)}"
+    new_channel = {
+        "id": new_id,
+        "name": payload.name.strip() or f"飞书通道_{new_id[:4]}",
+        "app_id": payload.app_id.strip(),
+        "app_secret": payload.app_secret.strip(),
+        "allowed_users": payload.allowed_users.strip(),
+        "allow_all_users": payload.allow_all_users,
+        "enabled": payload.enabled,
+    }
+    
+    channels.append(new_channel)
+    _save_feishu_channels(channels)
+    
+    await _reload_platform_manager()
+    
+    return FeishuChannelResponse(
+        id=new_channel["id"],
+        name=new_channel["name"],
+        app_id=new_channel["app_id"],
+        app_secret_configured=bool(new_channel["app_secret"]) and new_channel["app_secret"] not in FEISHU_SECRET_PLACEHOLDERS,
+        allowed_users=new_channel["allowed_users"],
+        allow_all_users=new_channel["allow_all_users"],
+        enabled=new_channel["enabled"],
+    )
+
+
+@app.put(
+    "/settings/platforms/feishu/channels/{channel_id}",
+    response_model=FeishuChannelResponse,
+    dependencies=[Depends(require_settings_write_auth)],
+)
+async def update_feishu_channel(channel_id: str, payload: UpdateFeishuChannelRequest):
+    """Update an existing Feishu channel configuration."""
+    channels = _load_feishu_channels()
+    target_idx = None
+    for idx, c in enumerate(channels):
+        if c["id"] == channel_id:
+            target_idx = idx
+            break
+            
+    if target_idx is None:
+        raise HTTPException(status_code=404, detail="Feishu channel not found")
+        
+    c = channels[target_idx]
+    c["name"] = payload.name.strip()
+    c["app_id"] = payload.app_id.strip()
+    c["allowed_users"] = payload.allowed_users.strip()
+    c["allow_all_users"] = payload.allow_all_users
+    c["enabled"] = payload.enabled
+    
+    if payload.app_secret is not None:
+        app_secret = payload.app_secret.strip()
+        if app_secret and app_secret not in FEISHU_SECRET_PLACEHOLDERS:
+            c["app_secret"] = app_secret
+        elif app_secret == "":
+            c["app_secret"] = ""
+            
+    _save_feishu_channels(channels)
+    
+    await _reload_platform_manager()
+    
+    return FeishuChannelResponse(
+        id=c["id"],
+        name=c["name"],
+        app_id=c["app_id"],
+        app_secret_configured=bool(c["app_secret"]) and c["app_secret"] not in FEISHU_SECRET_PLACEHOLDERS,
+        allowed_users=c["allowed_users"],
+        allow_all_users=c["allow_all_users"],
+        enabled=c["enabled"],
+    )
+
+
+@app.delete(
+    "/settings/platforms/feishu/channels/{channel_id}",
+    dependencies=[Depends(require_settings_write_auth)],
+)
+async def delete_feishu_channel(channel_id: str):
+    """Delete a Feishu channel configuration."""
+    channels = _load_feishu_channels()
+    initial_len = len(channels)
+    channels = [c for c in channels if c["id"] != channel_id]
+    
+    if len(channels) == initial_len:
+        raise HTTPException(status_code=404, detail="Feishu channel not found")
+        
+    _save_feishu_channels(channels)
+    
+    await _reload_platform_manager()
+    
+    return {"status": "success"}
 
 
 @app.get(

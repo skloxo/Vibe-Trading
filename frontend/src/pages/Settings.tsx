@@ -1,8 +1,8 @@
 import i18n from "@/i18n";
 import { useEffect, useMemo, useState, type FormEvent } from "react";
-import { Database, KeyRound, Loader2, RotateCcw, Save, Server, SlidersHorizontal } from "lucide-react";
+import { Database, KeyRound, Loader2, MessageSquare, RotateCcw, Save, Server, SlidersHorizontal, Plus, Trash2, Edit, Power } from "lucide-react";
 import { toast } from "sonner";
-import { api, isAuthRequiredError, type DataSourceSettings, type FeatureFlagsResponse, type LLMProviderOption, type LLMSettings } from "@/lib/api";
+import { api, isAuthRequiredError, type DataSourceSettings, type FeatureFlagsResponse, type LLMProviderOption, type LLMSettings, type FeishuChannel } from "@/lib/api";
 import { getApiAuthKey, setApiAuthKey } from "@/lib/apiAuth";
 
 interface LLMFormState {
@@ -47,6 +47,21 @@ export function Settings() {
   const [fredApiKey, setFredApiKey] = useState("");
   const [clearFredApiKey, setClearFredApiKey] = useState(false);
   const [featureFlags, setFeatureFlags] = useState<FeatureFlagsResponse | null>(null);
+  
+  // Feishu platforms settings states
+  const [feishuChannels, setFeishuChannels] = useState<FeishuChannel[]>([]);
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [editingChannel, setEditingChannel] = useState<FeishuChannel | null>(null);
+
+  // Form states for the modal
+  const [chanName, setChanName] = useState("");
+  const [chanEnabled, setChanEnabled] = useState(true);
+  const [chanAppId, setChanAppId] = useState("");
+  const [chanAppSecret, setChanAppSecret] = useState("");
+  const [chanAllowedUsers, setChanAllowedUsers] = useState("");
+  const [chanAllowAllUsers, setChanAllowAllUsers] = useState(false);
+  const [feishuSaving, setFeishuSaving] = useState(false);
+  
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [dataSaving, setDataSaving] = useState(false);
@@ -54,13 +69,14 @@ export function Settings() {
 
   useEffect(() => {
     let alive = true;
-    Promise.all([api.getLLMSettings(), api.getDataSourceSettings(), api.getFeatureFlags()])
-      .then(([llmData, dataSourceData, flagsData]) => {
+    Promise.all([api.getLLMSettings(), api.getDataSourceSettings(), api.getFeatureFlags(), api.getFeishuChannels()])
+      .then(([llmData, dataSourceData, flagsData, feishuData]) => {
         if (!alive) return;
         setSettings(llmData);
         setForm(toForm(llmData));
         setDataSettings(dataSourceData);
         setFeatureFlags(flagsData);
+        setFeishuChannels(feishuData);
         setSettingsLoadError(null);
       })
       .catch((error) => {
@@ -120,9 +136,15 @@ export function Settings() {
     setSaving(true);
     try {
       const updated = await api.updateLLMSettings({
-        ...form,
+        provider: form.provider,
+        model_name: form.model_name,
+        base_url: form.base_url,
         api_key: apiKey.trim() || undefined,
         clear_api_key: clearApiKey,
+        temperature: form.temperature,
+        timeout_seconds: form.timeout_seconds,
+        max_retries: form.max_retries,
+        reasoning_effort: form.reasoning_effort || undefined,
       });
       setSettings(updated);
       setForm(toForm(updated));
@@ -130,9 +152,100 @@ export function Settings() {
       setClearApiKey(false);
       toast.success(i18n.t("settings.llmSettingsSaved"));
     } catch (error) {
-      toast.error(i18n.t("settings.saveLlmSettingsFailed", { message: error instanceof Error ? error.message : "Unknown error" }));
+      const message = error instanceof Error ? error.message : "Unknown error";
+      toast.error(i18n.t("settings.saveLlmSettingsFailed", { message }));
     } finally {
       setSaving(false);
+    }
+  };
+
+  const openAddModal = () => {
+    setEditingChannel(null);
+    setChanName("");
+    setChanEnabled(true);
+    setChanAppId("");
+    setChanAppSecret("");
+    setChanAllowedUsers("");
+    setChanAllowAllUsers(false);
+    setIsModalOpen(true);
+  };
+
+  const openEditModal = (channel: FeishuChannel) => {
+    setEditingChannel(channel);
+    setChanName(channel.name);
+    setChanEnabled(channel.enabled);
+    setChanAppId(channel.app_id);
+    setChanAppSecret("");
+    setChanAllowedUsers(channel.allowed_users);
+    setChanAllowAllUsers(channel.allow_all_users);
+    setIsModalOpen(true);
+  };
+
+  const submitFeishuChannel = async (event: FormEvent) => {
+    event.preventDefault();
+    setFeishuSaving(true);
+    try {
+      if (editingChannel) {
+        const updated = await api.updateFeishuChannel(editingChannel.id, {
+          name: chanName.trim(),
+          app_id: chanAppId.trim(),
+          app_secret: chanAppSecret.trim() || undefined,
+          allowed_users: chanAllowedUsers.trim(),
+          allow_all_users: chanAllowAllUsers,
+          enabled: chanEnabled,
+        });
+        setFeishuChannels(feishuChannels.map((c) => (c.id === updated.id ? updated : c)));
+        toast.success(i18n.t("settings.channelSaved") || "Feishu channel saved");
+      } else {
+        const created = await api.createFeishuChannel({
+          name: chanName.trim(),
+          app_id: chanAppId.trim(),
+          app_secret: chanAppSecret.trim(),
+          allowed_users: chanAllowedUsers.trim(),
+          allow_all_users: chanAllowAllUsers,
+          enabled: chanEnabled,
+        });
+        setFeishuChannels([...feishuChannels, created]);
+        toast.success(i18n.t("settings.channelSaved") || "Feishu channel created");
+      }
+      setIsModalOpen(false);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Unknown error";
+      toast.error(i18n.t("settings.channelSaveFailed", { message }) || "Failed to save channel");
+    } finally {
+      setFeishuSaving(false);
+    }
+  };
+
+  const toggleChannelEnabled = async (channel: FeishuChannel) => {
+    try {
+      const updated = await api.updateFeishuChannel(channel.id, {
+        name: channel.name,
+        app_id: channel.app_id,
+        app_secret: undefined,
+        allowed_users: channel.allowed_users,
+        allow_all_users: channel.allow_all_users,
+        enabled: !channel.enabled,
+      });
+      setFeishuChannels(feishuChannels.map((c) => (c.id === updated.id ? updated : c)));
+      toast.success(i18n.t("settings.channelSaved") || "Feishu channel updated");
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Unknown error";
+      toast.error(i18n.t("settings.channelSaveFailed", { message }) || "Failed to toggle channel");
+    }
+  };
+
+  const deleteChannel = async (id: string) => {
+    if (!window.confirm(i18n.t("settings.deleteConfirm") || "Are you sure you want to delete this channel?")) {
+      return;
+    }
+    try {
+      await api.deleteFeishuChannel(id);
+      setFeishuChannels(feishuChannels.filter((c) => c.id !== id));
+      toast.success(i18n.t("settings.channelDeleted") || "Feishu channel deleted");
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Unknown error";
+      toast.error(i18n.t("settings.channelDeleteFailed", { message }) || "Failed to delete channel");
     }
   };
 
@@ -555,6 +668,204 @@ export function Settings() {
           </div>
         </div>
       </form>
+
+      <div className="rounded-lg border bg-card p-5 shadow-sm space-y-4">
+        <div className="flex items-center justify-between border-b pb-3">
+          <div className="space-y-1 pr-4">
+            <div className="flex items-center gap-2">
+              <MessageSquare className="h-4 w-4 text-primary" />
+              <h2 className="text-base font-semibold">{i18n.t("settings.feishuTitle")}</h2>
+            </div>
+            <p className="text-xs text-muted-foreground">{i18n.t("settings.feishuDesc")}</p>
+          </div>
+          <button
+            type="button"
+            onClick={openAddModal}
+            className="inline-flex items-center gap-1.5 rounded-md bg-primary/10 hover:bg-primary/20 text-primary px-3 py-1.5 text-xs font-medium transition"
+          >
+            <Plus className="h-3.5 w-3.5" />
+            {i18n.t("settings.addChannel")}
+          </button>
+        </div>
+
+        {feishuChannels.length === 0 ? (
+          <div className="text-center py-8 text-sm text-muted-foreground">
+            {i18n.t("settings.noChannels")}
+          </div>
+        ) : (
+          <div className="divide-y divide-border/60">
+            {feishuChannels.map((channel) => (
+              <div key={channel.id} className="flex items-center justify-between py-3.5 first:pt-0 last:pb-0">
+                <div className="space-y-1">
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm font-medium">{channel.name}</span>
+                    <span className={`inline-flex items-center rounded-full px-1.5 py-0.5 text-[10px] font-medium border ${
+                      channel.enabled
+                        ? "bg-green-500/10 text-green-400 border-green-500/20"
+                        : "bg-muted text-muted-foreground border-border"
+                    }`}>
+                      {channel.enabled ? "Active" : "Disabled"}
+                    </span>
+                  </div>
+                  <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-muted-foreground font-mono">
+                    <span>App ID: {channel.app_id}</span>
+                    <span>•</span>
+                    <span>Secret: {channel.app_secret_configured ? "••••••••" : "Not Configured"}</span>
+                    {channel.allowed_users && (
+                      <>
+                        <span>•</span>
+                        <span>OpenIDs: {channel.allowed_users}</span>
+                      </>
+                    )}
+                  </div>
+                </div>
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => toggleChannelEnabled(channel)}
+                    className={`rounded-md p-1.5 transition ${
+                      channel.enabled
+                        ? "text-green-500 hover:bg-green-500/10"
+                        : "text-muted-foreground hover:bg-muted"
+                    }`}
+                    title={i18n.t("settings.feishuEnabled")}
+                  >
+                    <Power className="h-4 w-4" />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => openEditModal(channel)}
+                    className="text-muted-foreground hover:text-foreground hover:bg-muted rounded-md p-1.5 transition"
+                    title={i18n.t("settings.editChannel")}
+                  >
+                    <Edit className="h-4 w-4" />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => deleteChannel(channel.id)}
+                    className="text-red-400 hover:text-red-500 hover:bg-red-500/10 rounded-md p-1.5 transition"
+                    title={i18n.t("settings.deleteChannel")}
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {isModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-in fade-in duration-200">
+          <div className="w-full max-w-lg rounded-xl border bg-card p-6 shadow-xl animate-in zoom-in-95 duration-200">
+            <h3 className="text-lg font-semibold mb-4 text-foreground">
+              {editingChannel ? i18n.t("settings.editChannel") : i18n.t("settings.addChannel")}
+            </h3>
+            <form onSubmit={submitFeishuChannel} className="space-y-4">
+              <label className="grid gap-1.5">
+                <span className={labelClass}>{i18n.t("settings.channelName")}</span>
+                <input
+                  type="text"
+                  required
+                  value={chanName}
+                  onChange={(e) => setChanName(e.target.value)}
+                  className={fieldClass}
+                  placeholder="e.g. 飞书监控机器人"
+                />
+              </label>
+
+              <label className="grid gap-1.5">
+                <span className={labelClass}>{i18n.t("settings.feishuAppId")}</span>
+                <input
+                  type="text"
+                  required
+                  value={chanAppId}
+                  onChange={(e) => setChanAppId(e.target.value)}
+                  className={fieldClass}
+                  placeholder="cli_xxxxxxxx"
+                />
+              </label>
+
+              <label className="grid gap-1.5">
+                <span className={labelClass}>{i18n.t("settings.feishuAppSecret")}</span>
+                <div className="relative">
+                  <KeyRound className="pointer-events-none absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
+                  <input
+                    type="password"
+                    required={!editingChannel}
+                    value={chanAppSecret}
+                    onChange={(e) => setChanAppSecret(e.target.value)}
+                    className={`${fieldClass} pl-9`}
+                    placeholder={
+                      editingChannel && editingChannel.app_secret_configured
+                        ? i18n.t("settings.configured")
+                        : "App Secret"
+                    }
+                    autoComplete="new-password"
+                  />
+                </div>
+              </label>
+
+              <label className="grid gap-1.5">
+                <span className={labelClass}>{i18n.t("settings.feishuAllowedUsers")}</span>
+                <input
+                  type="text"
+                  value={chanAllowedUsers}
+                  onChange={(e) => setChanAllowedUsers(e.target.value)}
+                  className={fieldClass}
+                  disabled={chanAllowAllUsers}
+                  placeholder="ou_xxxxxxxx,ou_yyyyyyyy"
+                />
+                <span className={hintClass}>{i18n.t("settings.feishuAllowedUsersDesc")}</span>
+              </label>
+
+              <div className="flex items-center gap-2">
+                <input
+                  type="checkbox"
+                  id="chanAllowAllUsers"
+                  checked={chanAllowAllUsers}
+                  onChange={(e) => setChanAllowAllUsers(e.target.checked)}
+                  className="h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary accent-primary"
+                />
+                <label htmlFor="chanAllowAllUsers" className="text-xs text-muted-foreground cursor-pointer select-none">
+                  {i18n.t("settings.feishuAllowAllUsers")}
+                </label>
+              </div>
+
+              <div className="flex items-center gap-2">
+                <input
+                  type="checkbox"
+                  id="chanEnabled"
+                  checked={chanEnabled}
+                  onChange={(e) => setChanEnabled(e.target.checked)}
+                  className="h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary accent-primary"
+                />
+                <label htmlFor="chanEnabled" className="text-xs text-muted-foreground cursor-pointer select-none">
+                  {i18n.t("settings.feishuEnabled")}
+                </label>
+              </div>
+
+              <div className="flex items-center justify-end gap-3 border-t pt-4 mt-6">
+                <button
+                  type="button"
+                  onClick={() => setIsModalOpen(false)}
+                  className="inline-flex items-center justify-center rounded-md border border-input bg-background hover:bg-accent px-4 py-2 text-sm font-medium transition"
+                >
+                  {i18n.t("agent.cancel")}
+                </button>
+                <button
+                  type="submit"
+                  disabled={feishuSaving}
+                  className="inline-flex items-center justify-center gap-2 rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:opacity-90 disabled:opacity-70 transition"
+                >
+                  {feishuSaving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
+                  {feishuSaving ? i18n.t("settings.saving") : i18n.t("settings.save")}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
 
       {featureFlags && (
         <div className="rounded-lg border bg-card p-5 shadow-sm">

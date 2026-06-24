@@ -144,6 +144,21 @@ export const api = {
       body: JSON.stringify(settings),
     }),
   getFeatureFlags: () => request<FeatureFlagsResponse>("/settings/feature-flags"),
+  getFeishuChannels: () => request<FeishuChannel[]>("/settings/platforms/feishu/channels"),
+  createFeishuChannel: (channel: CreateFeishuChannelRequest) =>
+    request<FeishuChannel>("/settings/platforms/feishu/channels", {
+      method: "POST",
+      body: JSON.stringify(channel),
+    }),
+  updateFeishuChannel: (id: string, channel: UpdateFeishuChannelRequest) =>
+    request<FeishuChannel>(`/settings/platforms/feishu/channels/${id}`, {
+      method: "PUT",
+      body: JSON.stringify(channel),
+    }),
+  deleteFeishuChannel: (id: string) =>
+    request<{ status: string }>(`/settings/platforms/feishu/channels/${id}`, {
+      method: "DELETE",
+    }),
 
   // Alpha Zoo API
   listAlphas: (params: AlphaListParams = {}) => {
@@ -263,6 +278,34 @@ export interface UpdateLLMSettingsRequest {
   timeout_seconds: number;
   max_retries: number;
   reasoning_effort?: string;
+}
+
+export interface FeishuChannel {
+  id: string;
+  name: string;
+  app_id: string;
+  app_secret_configured: boolean;
+  allowed_users: string;
+  allow_all_users: boolean;
+  enabled: boolean;
+}
+
+export interface CreateFeishuChannelRequest {
+  name: string;
+  app_id: string;
+  app_secret: string;
+  allowed_users?: string;
+  allow_all_users: boolean;
+  enabled: boolean;
+}
+
+export interface UpdateFeishuChannelRequest {
+  name: string;
+  app_id: string;
+  app_secret?: string;
+  allowed_users?: string;
+  allow_all_users: boolean;
+  enabled: boolean;
 }
 
 export interface DataSourceSettings {
