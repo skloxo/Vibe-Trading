@@ -1,6 +1,6 @@
 [project]
 name = "vibe-trading-ai"
-version = "0.1.10+s2"
+version = "0.1.10+s3"
 description = "A-Share & HK Equities Focus Quantitative Trading Workstation powered by Multi-Agent Swarms"
 requires-python = ">=3.11"
 license = "MIT"
@@ -42,7 +42,9 @@ dependencies = [
     "smartmoneyconcepts>=0.0.1",
     "tushare>=1.2.89",
     "requests>=2.31.0",
+    "yfinance>=0.2.30",
     "akshare>=1.12.0",
+    "ccxt>=4.0.0",
     "fastapi>=0.104.0",
     "uvicorn[standard]>=0.24.0",
     "pydantic>=2.0.0",
@@ -92,6 +94,9 @@ include = ["src*", "backtest*", "cli*"]
 "src.factors" = ["zoo/**/*.yaml", "zoo/**/*.md", "zoo/**/NOTICE"]
 
 [project.optional-dependencies]
+ibkr = [
+    "ib_async>=2.0",
+]
 deepseek = [
     "langchain-deepseek>=1.0.0,<2",
 ]

@@ -50,42 +50,36 @@ def test_remote_call_requires_cached_oauth(monkeypatch: pytest.MonkeyPatch) -> N
     assert "connector authorize robinhood-live-mcp" in result["error"]
 
 
-# DEPRECATED: ibkr connector removed
-def test_ibkr_official_profile_does_not_advertise_unknown_generic_reads() -> None:  # noqa: ANN
+def test_ibkr_official_profile_does_not_advertise_unknown_generic_reads() -> None:
     """IBKR official MCP stays honest until stable remote tool names are known."""
-    # profile = profiles.profile_by_id("ibkr-live-official-mcp-readonly")
-    # assert profile.capabilities == ("mcp.read.discovery",)
-    # result = service.get_account(profile.id)
-    # assert result["status"] == "error"
-    # assert "does not support" in result["error"]
-    import pytest; pytest.skip("ibkr connector removed")
+    profile = profiles.profile_by_id("ibkr-live-official-mcp-readonly")
+
+    assert profile.capabilities == ("mcp.read.discovery",)
+    result = service.get_account(profile.id)
+    assert result["status"] == "error"
+    assert "does not support" in result["error"]
 
 
-def test_connector_profile_id_for_broker_prefers_live_remote_mcp() -> None:  # noqa: ANN
+def test_connector_profile_id_for_broker_prefers_live_remote_mcp() -> None:
     """Broker on-ramps should resolve through the centralized profile registry."""
     assert service.connector_profile_id_for_broker("robinhood") == "robinhood-live-mcp"
-    # assert service.connector_profile_id_for_broker("ibkr") == "ibkr-live-official-mcp-readonly"  # ibkr removed
+    assert service.connector_profile_id_for_broker("ibkr") == "ibkr-live-official-mcp-readonly"
     assert service.connector_profile_id_for_broker("futurebroker") == "futurebroker-live-mcp"
 
 
-def test_select_connection_tool_returns_canonical_profile_id(  # noqa: ANN
+def test_select_connection_tool_returns_canonical_profile_id(
     monkeypatch: pytest.MonkeyPatch, tmp_path
 ) -> None:
     """Selecting a profile should persist and return the canonical id."""
-    from src.trading.profiles import BUILTIN_PROFILES
-    if not BUILTIN_PROFILES:
-        import pytest; pytest.skip("no built-in profiles to select")
-
     monkeypatch.setattr(profiles, "get_runtime_root", lambda: tmp_path)
-    first_profile = BUILTIN_PROFILES[0]
 
-    result = TradingSelectConnectionTool().execute(connection=first_profile.id.upper())
+    result = TradingSelectConnectionTool().execute(connection="IBKR-PAPER-LOCAL")
 
     assert result
     payload = json.loads(result)
     assert payload["status"] == "ok"
-    assert payload["selected_profile"] == first_profile.id
-    assert profiles.load_selected_profile_id() == first_profile.id
+    assert payload["selected_profile"] == "ibkr-paper-local"
+    assert profiles.load_selected_profile_id() == "ibkr-paper-local"
 
 
 def test_live_broker_mcp_wrappers_are_hidden_from_agent_registry(monkeypatch: pytest.MonkeyPatch) -> None:

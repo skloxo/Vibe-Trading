@@ -13,7 +13,7 @@ def test_run_card_replaces_non_finite_metrics_with_null(tmp_path: Path) -> None:
 
     card = write_run_card(
         run_dir,
-        {"codes": ["000001.SZ"], "source": "tushare"},
+        {"codes": ["AAPL"], "source": "yfinance"},
         {
             "sharpe": float("nan"),
             "sortino": float("inf"),

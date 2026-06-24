@@ -11,12 +11,13 @@ from pydantic import BaseModel, ConfigDict, Field, model_validator
 # wildcard ``enabled_tools`` (which would re-admit every WRITE/UNKNOWN tool) is
 # rejected at config-load time unless a broker-specific read-only OAuth probe is
 # explicitly documented below.
-LIVE_BROKER_SERVER_KEYS: frozenset[str] = frozenset({"robinhood"})
+LIVE_BROKER_SERVER_KEYS: frozenset[str] = frozenset({"robinhood", "ibkr"})
 
 # URL host suffix -> canonical live-broker key. Detection by host prevents an
 # aliased config key from bypassing the wildcard rejection / classification gate.
 LIVE_BROKER_URL_HOST_SUFFIX_TO_KEY: dict[str, str] = {
     "robinhood.com": "robinhood",
+    "ibkr.com": "ibkr",
 }
 
 # Live-broker URL host suffixes. Detecting a live broker by config key alone is
@@ -28,11 +29,20 @@ LIVE_BROKER_URL_HOST_SUFFIX_TO_KEY: dict[str, str] = {
 # / non-URL live channels and for keys that intentionally name a known broker.
 LIVE_BROKER_URL_HOST_SUFFIXES: tuple[str, ...] = tuple(LIVE_BROKER_URL_HOST_SUFFIX_TO_KEY)
 
-# All connector-specific wildcard scope exceptions removed during
-# foreign-market cleanup.
-LIVE_BROKER_READONLY_WILDCARD_REQUIRED_SCOPES: dict[str, frozenset[str]] = {}
-LIVE_BROKER_READONLY_WILDCARD_ALLOWED_EXTRA_SCOPES: dict[str, frozenset[str]] = {}
-LIVE_BROKER_WRITE_SCOPES: dict[str, frozenset[str]] = {}
+# IBKR's official MCP endpoint does not publish stable tool names until after
+# OAuth. To support a first-run read-only probe, we allow a wildcard only when
+# the IBKR server is constrained to the documented read scope and does not carry
+# the write scope. The live registry still fail-closes WRITE/UNKNOWN tools after
+# discovery; this exception is only for read-tool discovery under ``mcp.read``.
+LIVE_BROKER_READONLY_WILDCARD_REQUIRED_SCOPES: dict[str, frozenset[str]] = {
+    "ibkr": frozenset({"mcp.read"}),
+}
+LIVE_BROKER_READONLY_WILDCARD_ALLOWED_EXTRA_SCOPES: dict[str, frozenset[str]] = {
+    "ibkr": frozenset({"openid", "profile", "email", "account-ids"}),
+}
+LIVE_BROKER_WRITE_SCOPES: dict[str, frozenset[str]] = {
+    "ibkr": frozenset({"mcp.write"}),
+}
 
 
 def _url_host(url: str) -> str:
@@ -132,7 +142,7 @@ def _allows_readonly_wildcard_probe(
 ) -> bool:
     """Return whether a live broker may use ``enabled_tools=["*"]``.
 
-    The only supported exception today is a broker's official MCP read probe:
+    The only supported exception today is IBKR's official MCP read probe:
     tool names are not known before OAuth, but the token request can be pinned
     to ``mcp.read``. Any write scope or missing read scope fails closed.
 
@@ -200,7 +210,24 @@ ROBINHOOD_MCP_SERVER_SEED: dict[str, object] = {
     ],
 }
 
-# Foreign-market MCP server seeds removed during cleanup.
+# Canonical seed for IBKR's official remote MCP server. The endpoint is visible
+# from Claude's connector page / install command and advertises OAuth scopes
+# ``mcp.read`` and ``mcp.write``. This seed intentionally requests ONLY
+# ``mcp.read`` and uses ``enabled_tools=["*"]`` as a read-only discovery probe,
+# because IBKR tool names are not public until OAuth completes. If the operator
+# later requests ``mcp.write``, the wildcard exception no longer applies and the
+# config must pin an explicit tool allowlist plus pass the live order gate.
+IBKR_MCP_SERVER_SEED: dict[str, object] = {
+    "type": "streamableHttp",
+    "url": "https://api.ibkr.com/v1/api/mcp",
+    "auth": {
+        "type": "oauth",
+        "scopes": ["mcp.read"],
+        "client_name": "Vibe-Trading",
+        "cache_dir": "~/.vibe-trading/live/ibkr/oauth",
+    },
+    "enabled_tools": ["*"],
+}
 
 
 def _to_camel(name: str) -> str:

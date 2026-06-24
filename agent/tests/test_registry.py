@@ -81,7 +81,7 @@ class _FakeLocalLoader:
     user has no Data Bridge config."""
 
     name = "local"
-    markets = {"a_share", "futures", "fund", "macro"}
+    markets = {"a_share", "us_equity", "crypto"}
     requires_auth = False
 
     def is_available(self) -> bool:
@@ -133,29 +133,52 @@ class TestProtocol:
 
 class TestFallbackChains:
     def test_all_expected_markets_present(self) -> None:
-        expected = {"a_share", "futures", "fund", "macro"}
+        expected = {"a_share", "us_equity", "hk_equity", "crypto", "futures", "fund", "macro", "forex"}
         assert expected == set(FALLBACK_CHAINS.keys())
 
     def test_chains_are_non_empty(self) -> None:
         for market, chain in FALLBACK_CHAINS.items():
             assert len(chain) > 0, f"Fallback chain for {market} is empty"
 
+    def test_crypto_chain_includes_yfinance_fallback(self) -> None:
+        """yfinance is the third-tier fallback for crypto when OKX and CCXT fail."""
+        assert "yfinance" in FALLBACK_CHAINS["crypto"]
+        # OKX and CCXT should still be preferred
+        assert FALLBACK_CHAINS["crypto"][:2] == ["okx", "ccxt"]
+
     def test_chains_ordered_by_ip_ban_risk(self) -> None:
-        """A-share chain leads with throttle-tolerant public sources and trails
+        """Equity chains lead with throttle-tolerant public sources and trail
         with key-gated REST fallbacks, in the exact reviewed order."""
         assert FALLBACK_CHAINS["a_share"] == [
             "tencent", "mootdx", "eastmoney", "baostock", "akshare", "tushare", "local",
         ]
+        assert FALLBACK_CHAINS["us_equity"] == [
+            "yahoo", "stooq", "sina", "eastmoney", "yfinance", "tiingo", "fmp",
+            "finnhub", "alphavantage", "akshare", "local",
+        ]
+        assert FALLBACK_CHAINS["hk_equity"] == [
+            "eastmoney", "yahoo", "futu", "yfinance", "akshare", "local",
+        ]
+
+    def test_us_equity_includes_sina_fallback(self) -> None:
+        """'sina' must be reachable for US equities (after yahoo/stooq) so it is
+        not a dead config source that no chain can ever select."""
+        chain = FALLBACK_CHAINS["us_equity"]
+        assert "sina" in chain
+        assert chain.index("sina") > chain.index("yahoo")
+        assert chain.index("sina") > chain.index("stooq")
 
     def test_a_share_includes_baostock(self) -> None:
         """'baostock' must remain a reachable A-share fallback."""
         assert "baostock" in FALLBACK_CHAINS["a_share"]
 
     def test_unchanged_chains_preserved(self) -> None:
-        """futures/fund/macro chains must be left untouched."""
+        """crypto/futures/fund/macro/forex chains must be left untouched."""
+        assert FALLBACK_CHAINS["crypto"] == ["okx", "ccxt", "yfinance", "local"]
         assert FALLBACK_CHAINS["futures"] == ["tushare", "akshare", "local"]
         assert FALLBACK_CHAINS["fund"] == ["tushare", "akshare", "local"]
         assert FALLBACK_CHAINS["macro"] == ["akshare", "tushare", "local"]
+        assert FALLBACK_CHAINS["forex"] == ["akshare", "yfinance", "local"]
 
 
 # ---------------------------------------------------------------------------
@@ -167,7 +190,8 @@ class TestValidSources:
     def test_includes_new_loaders(self) -> None:
         """Newly registered loaders must be accepted config sources."""
         new_sources = {
-            "eastmoney", "sina",
+            "eastmoney", "sina", "stooq", "yahoo",
+            "finnhub", "alphavantage", "tiingo", "fmp",
         }
         assert new_sources <= VALID_SOURCES
 

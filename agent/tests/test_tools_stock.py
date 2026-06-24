@@ -106,13 +106,17 @@ class TestStockRiskTool:
         """场景9: 风险预警触发"""
         result = self.tool.execute(codes=["600519"])
         data = json.loads(result)
-        assert isinstance(data, list)
+        assert isinstance(data, dict)
+        assert "data" in data
+        assert isinstance(data["data"], list)
     
     def test_multiple_stocks(self):
         """场景9: 多只股票风险检查"""
         result = self.tool.execute(codes=["600519", "000001", "601318"])
         data = json.loads(result)
-        assert isinstance(data, list)
+        assert isinstance(data, dict)
+        assert "data" in data
+        assert isinstance(data["data"], list)
 
 
 @pytest.mark.allow_sockets
@@ -127,13 +131,17 @@ class TestStockInfoSearchTool:
         """场景11: 基本面查询"""
         result = self.tool.execute(codes=["600519"])
         data = json.loads(result)
-        assert isinstance(data, list)
+        assert isinstance(data, dict)
+        assert "data" in data
+        assert isinstance(data["data"], list)
     
     def test_multiple_search(self):
         """场景11: 多只股票查询"""
         result = self.tool.execute(codes=["600519", "000001"])
         data = json.loads(result)
-        assert isinstance(data, list)
+        assert isinstance(data, dict)
+        assert "data" in data
+        assert isinstance(data["data"], list)
 
 
 @pytest.mark.allow_sockets
@@ -150,7 +158,7 @@ class TestMarketScanTool:
         data = json.loads(result)
         assert "scan_type" in data
         assert data["scan_type"] == "limit_up"
-        assert "results" in data
+        assert "data" in data
     
     def test_limit_down_scan(self):
         """场景4: 跌停股票风险"""
@@ -202,35 +210,35 @@ class TestIntegrationScenarios:
         tool = MarketScanTool()
         result = tool.execute(scan_type="limit_up", limit=5)
         data = json.loads(result)
-        assert "results" in data
+        assert "data" in data
     
     def test_scenario_4_limit_down_risk(self):
         """场景4: 跌停股票风险"""
         tool = MarketScanTool()
         result = tool.execute(scan_type="limit_down")
         data = json.loads(result)
-        assert "results" in data
+        assert "data" in data
     
     def test_scenario_5_index_monitoring(self):
         """场景5: 大盘指数监控"""
         tool = MarketScanTool()
         result = tool.execute(scan_type="index")
         data = json.loads(result)
-        assert "results" in data
+        assert "data" in data
     
     def test_scenario_6_sector_rotation(self):
         """场景6: 板块轮动检测"""
         tool = MarketScanTool()
         result = tool.execute(scan_type="sector")
         data = json.loads(result)
-        assert "results" in data
+        assert "data" in data
     
     def test_scenario_7_active_stocks(self):
         """场景7: 异动股票扫描"""
         tool = MarketScanTool()
         result = tool.execute(scan_type="active", threshold=5.0)
         data = json.loads(result)
-        assert "results" in data
+        assert "data" in data
     
     def test_scenario_8_portfolio_pnl(self):
         """场景8: 持仓盈亏计算"""
@@ -259,14 +267,15 @@ class TestIntegrationScenarios:
         tool = StockInfoSearchTool()
         result = tool.execute(codes=["600519"])
         data = json.loads(result)
-        assert isinstance(data, list)
+        assert isinstance(data, dict)
+        assert "data" in data
     
     def test_scenario_12_stock_pool_rotation(self):
         """场景12: 股票池轮动"""
         tool = MarketScanTool()
         result = tool.execute(scan_type="active", threshold=3.0, limit=10)
         data = json.loads(result)
-        assert "results" in data
+        assert "data" in data
     
     def test_scenario_13_closing_summary(self):
         """场景13: 收盘总结"""
@@ -291,7 +300,8 @@ class TestIntegrationScenarios:
         
         assert "portfolio" in portfolio_result
         assert "code" in tech_result
-        assert isinstance(risk_result, list)
+        assert isinstance(risk_result, dict)
+        assert "data" in risk_result
 
 
 if __name__ == "__main__":

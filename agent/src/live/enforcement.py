@@ -52,10 +52,17 @@ class UniverseDataUnavailable(Exception):
 
 
 #: AssetClass → the loader market key (``backtest.loaders.registry`` fallback
-#: chains). CN_EQUITY has no loader market wired here, so market-cap / liquidity
-#: floors for A-shares fail closed (deny) rather than wave through — intentional.
-#: If ever wired, the registry's A-share market key is "a_share" (not "cn_equity").
-_ASSET_CLASS_MARKET: dict[AssetClass, str] = {}
+#: chains). US equities/ETFs route to the ``us_equity`` chain (yfinance →
+#: akshare); crypto routes to the ``crypto`` chain (okx → ccxt).
+_ASSET_CLASS_MARKET: dict[AssetClass, str] = {
+    AssetClass.US_EQUITY: "us_equity",
+    AssetClass.US_ETF: "us_equity",
+    AssetClass.HK_EQUITY: "hk_equity",
+    AssetClass.CRYPTO: "crypto",
+    # CN_EQUITY has no loader market wired here, so market-cap / liquidity floors
+    # for A-shares fail closed (deny) rather than wave through — intentional. If
+    # ever wired, the registry's A-share market key is "a_share" (not "cn_equity").
+}
 
 #: Breach ``kind`` values. ``universe``/``instrument`` are structural (DENY);
 #: ``quantitative`` pauses for re-authorization (SPEC §6).
@@ -226,7 +233,8 @@ def last_price_usd(symbol: str, asset_class: AssetClass) -> float | None:
 
     The fallback path the gate uses when the broker's own quote read tool is
     unavailable: pull the most recent daily close from the first available
-    loader in the asset-class market chain). Used to convert
+    loader in the asset-class market chain (yfinance/akshare for US equity,
+    okx/ccxt for crypto — the project's standard auto-fallback). Used to convert
     a quantity-only order into a USD notional so the notional cap stays
     enforceable (SPEC §4).
 
@@ -665,8 +673,15 @@ def avg_daily_dollar_volume(symbol: str, asset_class: AssetClass) -> float | Non
 def market_cap_usd(symbol: str, asset_class: AssetClass) -> float | None:
     """Market capitalization (USD) for ``symbol``, fail-closed.
 
-    Market-cap lookup is not available after foreign-market cleanup.
-    Returns ``None`` (→ fail-closed DENY) for all symbols.
+    The existing OHLCV loaders do not expose a unified market-cap field, so this
+    is best-effort: for US equities/ETFs it reads ``yfinance``'s ``.info``
+    when available; it returns ``None`` (→ fail-closed DENY) whenever the figure
+    cannot be obtained. This keeps the contract honest — an unenforceable floor
+    denies rather than waves the order through.
+
+    TODO(L6): once the real Robinhood read-tool catalog is observed, prefer a
+    broker-reported fundamentals/quote figure (and a dedicated fundamentals
+    loader for non-US assets) over the yfinance ``.info`` best-effort below.
 
     Args:
         symbol: Normalized upper-case symbol.
@@ -675,5 +690,20 @@ def market_cap_usd(symbol: str, asset_class: AssetClass) -> float | None:
     Returns:
         Market cap in USD, or ``None`` when unavailable.
     """
-    # No unified market-cap source available after foreign-market cleanup.
-    return None
+    if asset_class not in (AssetClass.US_EQUITY, AssetClass.US_ETF):
+        # No unified market-cap source for crypto/other here — fail-closed.
+        return None
+    try:
+        import yfinance  # type: ignore
+    except Exception:
+        return None
+    try:
+        info = yfinance.Ticker(symbol).info
+    except Exception as exc:
+        logger.warning("market-cap lookup failed for %s: %s", symbol, exc)
+        return None
+    if not isinstance(info, dict):
+        return None
+    cap = info.get("marketCap")
+    parsed = _as_float(cap)
+    return parsed if parsed and parsed > 0 else None

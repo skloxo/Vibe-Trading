@@ -11,14 +11,20 @@ from typing import Optional
 
 import pandas as pd
 
+from backtest.loaders.yfinance_loader import DataLoader as YfinanceLoader
+
 
 # -------------------------------------------------------------------
 # Benchmark map: market type → default ticker
 # -------------------------------------------------------------------
 
 MARKET_BENCHMARKS: dict[str, Optional[str]] = {
+    "us_equity":  "SPY",
+    "hk_equity":  "HK.03100",   # Hang Seng China Enterprises ETF
     "a_share":    "000300.SH",  # CSI 300 (China A-share core index)
-    "futures":    "000300.SH",  # CSI 300 as proxy
+    "crypto":     "BTC-USDT",
+    "futures":    "ES.CME",      # E-mini S&P 500 futures
+    "forex":      None,         # no universal benchmark
 }
 
 
@@ -41,7 +47,7 @@ def resolve_benchmark(
 
     Args:
         strategy_codes: Instruments being backtested (used for market inference).
-        source:         Data source name (tushare / akshare).
+        source:         Data source name (tushare / yfinance / okx / akshare / ccxt).
         start_date:     Backtest start date.
         end_date:       Backtest end date.
         interval:       Bar interval (1m / 5m / 15m / 30m / 1H / 4H / 1D).
@@ -91,8 +97,8 @@ def _resolve_ticker(
     market = _infer_market(codes, source)
     ticker = MARKET_BENCHMARKS.get(market)
 
-    # Benchmark fetch uses the configured source
-    # Only applies to us_equity / hk_equity market types
+    # yfinance is the universal fallback for benchmark fetch
+    # but it only works for us_equity / hk_equity market types
     if ticker and market not in {"us_equity", "hk_equity"}:
         # Only use benchmark if we can actually fetch it
         pass
@@ -107,8 +113,12 @@ def _infer_market(codes: list[str], source: str) -> str:
 
     first = codes[0].upper()
 
-    if "-" in first or "/" in first:
-        return "futures"
+    if source in ("okx", "ccxt") or "-" in first or "/" in first:
+        return "crypto"
+    if first.endswith(".US"):
+        return "us_equity"
+    if first.endswith(".HK"):
+        return "hk_equity"
     if source in ("tushare", "akshare"):
         if first.isdigit() and len(first) == 6:
             return "a_share"
@@ -125,10 +135,8 @@ def _fetch_benchmark(
     end_date:   str,
     interval:   str,
 ) -> pd.DataFrame:
-    """Fetch benchmark OHLCV data via the loader registry (auto-fallback)."""
-    from backtest.loaders.registry import resolve_loader
-
-    loader = resolve_loader("a_share")
+    """Fetch benchmark OHLCV data via yfinance (single symbol, no auth)."""
+    loader = YfinanceLoader()
     result = loader.fetch([ticker], start_date, end_date, interval=interval)
 
     if isinstance(result, dict):

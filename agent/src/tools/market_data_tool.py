@@ -14,7 +14,8 @@ class MarketDataTool(BaseTool):
     name = "get_market_data"
     description = (
         "Fetch normalized OHLCV market data through the repository loader layer. "
-        "Use this for stock, ETF, index, or crypto price bars."
+        "Use this for stock, ETF, index, or crypto price bars before writing raw "
+        "yfinance/OKX/Tushare scripts."
     )
     parameters = {
         "type": "object",
@@ -36,6 +37,10 @@ class MarketDataTool(BaseTool):
                 "type": "string",
                 "enum": [
                     "auto",
+                    "yfinance",
+                    "yahoo",
+                    "okx",
+                    "ccxt",
                     "tushare",
                     "baostock",
                     "tencent",
@@ -43,11 +48,18 @@ class MarketDataTool(BaseTool):
                     "mootdx",
                     "eastmoney",
                     "sina",
+                    "stooq",
+                    "finnhub",
+                    "alphavantage",
+                    "tiingo",
+                    "fmp",
                 ],
                 "description": (
                     "Data source. 'auto' detects from symbol format with fallback. "
-                    "Available: baostock/tencent/eastmoney/sina/akshare/mootdx "
-                    "(China A-shares, free), tushare (China A-shares, key-gated)."
+                    "Free, no key: yfinance/yahoo (US/HK equities), okx/ccxt "
+                    "(crypto), baostock/tencent/eastmoney/sina/akshare/mootdx "
+                    "(China A-shares), stooq (global EOD). Key-gated REST: tushare "
+                    "(China A-shares), finnhub/alphavantage/tiingo/fmp (US/global)."
                 ),
                 "default": "auto",
             },

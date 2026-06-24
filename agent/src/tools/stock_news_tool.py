@@ -1,12 +1,17 @@
 """Read-only news tool: per-stock and global financial headlines.
 
-One public, no-auth news surface is wrapped behind a BaseTool contract:
+Two public, no-auth news surfaces are wrapped behind one BaseTool contract:
 
 * China A-share (and general China-market finance) headlines come from
   Eastmoney's free ``search-api`` news-list endpoint. Like every Eastmoney
   surface it rate-limits by source IP, so the request routes through the frozen,
   IP-throttled :mod:`backtest.loaders.eastmoney_client` rather than touching the
   host directly.
+* US / HK have no free no-auth article feed here: the frozen
+  :func:`backtest.loaders.yahoo_client.search` helper exposes only the search
+  endpoint's instrument ``quotes`` (not its ``news`` array), so the tool returns
+  honest related-instrument *matches* under a ``matches`` key — never instrument
+  hits relabelled as articles.
 
 The tool never re-implements provider plumbing and never issues an un-throttled
 request: every outbound call goes through a frozen client.
@@ -26,7 +31,7 @@ import json
 import logging
 from typing import Any
 
-from backtest.loaders import eastmoney_client
+from backtest.loaders import eastmoney_client, yahoo_client
 
 from src.agent.tools import BaseTool
 
@@ -38,6 +43,8 @@ _EM_NEWS_URL = "https://search-api-web.eastmoney.com/search/jsonp"
 
 # A-share / China-market suffixes that route to the Eastmoney news surface.
 _EM_SUFFIXES = ("SH", "SZ", "BJ")
+# Suffixes that route to Yahoo's search-news surface.
+_YAHOO_SUFFIXES = ("US", "HK")
 
 # Default broad-market query used when ``scope='global'`` carries no code.
 _GLOBAL_QUERY = "财经"
@@ -185,6 +192,48 @@ def _fetch_eastmoney_news(query: str, limit: int) -> list[dict[str, Any]]:
     return [_em_article(a) for a in articles if isinstance(a, dict)][:limit]
 
 
+def _yahoo_match(raw: dict[str, Any]) -> dict[str, Any]:
+    """Project one Yahoo search match into a compact headline-style record.
+
+    Yahoo's ``search`` helper returns instrument matches; each is surfaced as a
+    related-instrument headline so callers get the symbol, name and exchange.
+
+    Args:
+        raw: A single quote dict from :func:`yahoo_client.search`.
+
+    Returns:
+        A flat ``{title, symbol, exchange, quote_type}`` record.
+    """
+    name = raw.get("shortname") or raw.get("longname") or raw.get("symbol")
+    return {
+        "title": _snippet(name),
+        "symbol": raw.get("symbol"),
+        "exchange": raw.get("exchange"),
+        "quote_type": raw.get("quoteType"),
+    }
+
+
+def _fetch_yahoo_matches(query: str, limit: int) -> list[dict[str, Any]]:
+    """Fetch US/HK related-instrument matches for a query via Yahoo search.
+
+    Yahoo's public search endpoint also carries a ``news`` array, but the frozen
+    :func:`yahoo_client.search` helper exposes only the instrument ``quotes``.
+    Rather than mislabel those quotes as articles, this returns them honestly as
+    related-instrument matches.
+
+    Args:
+        query: Free-text search term (bare ticker or keyword).
+        limit: Maximum number of records to return.
+
+    Returns:
+        A capped list of compact instrument-match records; empty when none.
+
+    Raises:
+        requests.RequestException: Network/HTTP failure, propagated to caller.
+    """
+    matches = yahoo_client.search(query)
+    return [_yahoo_match(m) for m in matches if isinstance(m, dict)][:limit]
+
 
 class StockNewsTool(BaseTool):
     """Read-only per-stock and global financial news headlines."""
@@ -193,8 +242,11 @@ class StockNewsTool(BaseTool):
     description = (
         "Fetch recent financial news headlines, read-only and no auth. Markets: "
         "China A-share (SH/SZ/BJ) returns Eastmoney news ARTICLES "
-        "(title/url/source/published/snippet) under 'articles'. "
-        "Use scope 'stock' with a 'code', or scope 'global' (no code) for broad "
+        "(title/url/source/published/snippet) under 'articles'. US (.US) and Hong "
+        "Kong (.HK) do NOT return news articles: Yahoo's public search surface "
+        "yields related-instrument MATCHES (symbol/name/exchange/quote_type), "
+        "returned under 'matches' (result_type='matches'), not 'articles'. Use "
+        "scope 'stock' with a 'code', or scope 'global' (no code) for broad "
         "China-market finance articles. "
         'Example: {"code": "600519.SH", "scope": "stock", "limit": 10}.'
     )
@@ -204,9 +256,10 @@ class StockNewsTool(BaseTool):
             "code": {
                 "type": "string",
                 "description": (
-                    "Symbol whose news to fetch, e.g. '600519.SH'. "
-                    "Required when scope='stock'; ignored when scope='global'. "
-                    "Only A-share (SH/SZ/BJ) codes are supported."
+                    "Symbol whose news to fetch, e.g. '600519.SH', 'AAPL.US', "
+                    "'00700.HK'. Required when scope='stock'; ignored when "
+                    "scope='global'. The exchange suffix selects the upstream: "
+                    "SH/SZ/BJ -> Eastmoney, US/HK -> Yahoo Finance."
                 ),
             },
             "scope": {
@@ -288,8 +341,11 @@ class StockNewsTool(BaseTool):
 
         if suffix in _EM_SUFFIXES:
             return self._stock_via_eastmoney(code, query, limit)
+        if suffix in _YAHOO_SUFFIXES:
+            return self._stock_via_yahoo(code, query, limit)
         return self._error(
-            f"unsupported market for code {code!r}; expected suffix in {_EM_SUFFIXES}"
+            f"unsupported market for code {code!r}; expected suffix in "
+            f"{_EM_SUFFIXES + _YAHOO_SUFFIXES}"
         )
 
     def _stock_via_eastmoney(self, code: str, query: str, limit: int) -> str:
@@ -303,6 +359,24 @@ class StockNewsTool(BaseTool):
             "a_share", "eastmoney", {"scope": "stock", "code": code, "articles": articles}
         )
 
+    def _stock_via_yahoo(self, code: str, query: str, limit: int) -> str:
+        """Fetch US/HK related-instrument matches from Yahoo for one code.
+
+        Yahoo's public ``search`` surface yields instrument matches, not news
+        articles, so the payload is labelled ``matches`` (never ``articles``) to
+        avoid passing instrument hits off as headlines.
+        """
+        market = "hk" if _suffix_of(code) == "HK" else "us"
+        try:
+            matches = _fetch_yahoo_matches(query, limit)
+        except Exception as exc:  # noqa: BLE001 - surface any fetch failure as envelope
+            logger.warning("yahoo search fetch failed for %s: %s", code, exc)
+            return self._error(f"yahoo search fetch failed: {exc}")
+        return self._ok(
+            market,
+            "yahoo",
+            {"scope": "stock", "code": code, "result_type": "matches", "matches": matches},
+        )
 
     @staticmethod
     def _ok(market: str, source: str, data: dict[str, Any]) -> str:

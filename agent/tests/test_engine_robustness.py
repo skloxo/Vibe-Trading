@@ -356,12 +356,10 @@ class TestBacktestConfigSchema:
             )
 
     def test_mootdx_and_futu_sources_accepted(self) -> None:
-        """mootdx is a registered loader, so config validation must
-        accept it. Regression: ``_VALID_SOURCES`` drifted and rejected it
-        even though the agent-facing backtest tool already allowed it."""
-        # DEPRECATED: futu removed during foreign-market cleanup
-        # for src in ("mootdx", "futu"):
-        for src in ("mootdx",):
+        """mootdx and futu are registered loaders, so config validation must
+        accept them. Regression: ``_VALID_SOURCES`` drifted and rejected both
+        even though the agent-facing backtest tool already allowed them."""
+        for src in ("mootdx", "futu"):
             c = BacktestConfigSchema(
                 codes=["000001.SZ"],
                 start_date="2025-01-01",
@@ -423,6 +421,30 @@ class TestDateRangeValidation:
     def test_invalid_date_format_raises(self) -> None:
         with pytest.raises(ValueError, match="Invalid date format"):
             validate_date_range("not-a-date", "2025-06-01")
+
+    def test_yfinance_loader_validates_dates(self) -> None:
+        """yfinance loader should raise on reversed dates before fetching."""
+        from backtest.loaders.yfinance_loader import DataLoader
+
+        loader = DataLoader()
+        with pytest.raises(ValueError):
+            loader.fetch(["AAPL"], "2025-06-01", "2025-01-01")
+
+    def test_okx_loader_validates_dates(self) -> None:
+        """OKX loader should raise on reversed dates before fetching."""
+        from backtest.loaders.okx import DataLoader
+
+        loader = DataLoader()
+        with pytest.raises(ValueError):
+            loader.fetch(["BTC-USDT"], "2025-06-01", "2025-01-01")
+
+    def test_ccxt_loader_validates_dates(self) -> None:
+        """CCXT loader should raise on reversed dates before fetching."""
+        from backtest.loaders.ccxt_loader import DataLoader
+
+        loader = DataLoader()
+        with pytest.raises(ValueError):
+            loader.fetch(["BTC-USDT"], "2025-06-01", "2025-01-01")
 
     def test_akshare_loader_validates_dates(self) -> None:
         """AKShare loader should raise on reversed dates before fetching."""

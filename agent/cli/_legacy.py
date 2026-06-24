@@ -3421,9 +3421,42 @@ def cmd_connector_configure(
     yes: bool = False,
 ) -> int:
     """Configure a local connector profile."""
-    console.print("[red]Local connector configuration is no longer available.[/red]")
-    console.print("[dim]All direct-SDK connectors have been removed. Use remote MCP connectors instead.[/dim]")
-    return EXIT_USAGE_ERROR
+    from src.trading.connectors.ibkr.local import IBKRLocalConfig, config_path, save_config
+
+    try:
+        profile = _selected_profile_or(profile_id)
+    except ValueError as exc:
+        console.print(f"[red]{exc}[/red]")
+        return EXIT_USAGE_ERROR
+    if profile.transport != "local_tws" or profile.connector != "ibkr":
+        console.print(f"[red]{profile.id} is not a local TWS/Gateway profile.[/red]")
+        return EXIT_USAGE_ERROR
+
+    path = config_path()
+    if path.exists() and not yes:
+        console.print(f"[yellow]Local connector config already exists:[/yellow] {path}")
+        try:
+            if not Confirm.ask("Overwrite it?", default=False):
+                console.print("[dim]Aborted.[/dim]")
+                return EXIT_SUCCESS
+        except EOFError:
+            console.print("[dim]No input available; use --yes for non-interactive setup.[/dim]")
+            return EXIT_USAGE_ERROR
+
+    cfg = IBKRLocalConfig.from_mapping(
+        {
+            **profile.config,
+            "host": host,
+            "port": port or profile.config.get("port"),
+            "clientId": client_id,
+            "account": account,
+            "readonly": True,
+        }
+    )
+    path = save_config(cfg)
+    console.print(f"[green]Configured[/green] {profile.id} [dim]({path})[/dim]")
+    console.print(f"[dim]Run `vibe-trading connector check {profile.id}` to verify it.[/dim]")
+    return EXIT_SUCCESS
 
 
 def cmd_connector_check(
@@ -4029,7 +4062,7 @@ def _build_parser() -> argparse.ArgumentParser:
     connector_subparsers.add_parser("list", help="List selectable connector profiles")
 
     connector_use = connector_subparsers.add_parser("use", help="Select the default connector profile")
-    connector_use.add_argument("profile", help="Profile id, e.g. robinhood-live")
+    connector_use.add_argument("profile", help="Profile id, e.g. ibkr-paper-local")
 
     def _add_connector_profile_arg(p: argparse.ArgumentParser, *, required: bool = False) -> None:
         if required:
@@ -4090,8 +4123,8 @@ def _build_parser() -> argparse.ArgumentParser:
     _add_connector_profile_arg(connector_history)
     _add_connector_local(connector_history)
     _add_connector_contract(connector_history)
-    connector_history.add_argument("--duration", default="30 D", help="Trading duration string, e.g. '30 D'")
-    connector_history.add_argument("--bar-size", dest="bar_size", default="1 day", help="Trading bar size, e.g. '1 day'")
+    connector_history.add_argument("--duration", default="30 D", help="IBKR (local_tws) duration string")
+    connector_history.add_argument("--bar-size", dest="bar_size", default="1 day", help="IBKR (local_tws) bar size")
     connector_history.add_argument("--what-to-show", dest="what_to_show", default="TRADES")
     connector_history.add_argument("--no-rth", action="store_true", help="Include outside-regular-hours data when available")
     connector_history.add_argument("--period", default="1d", help="Bar interval for SDK connectors: 1m/5m/15m/30m/1h/4h/1d/1w/1M")

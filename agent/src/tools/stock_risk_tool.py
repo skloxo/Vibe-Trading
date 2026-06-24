@@ -109,6 +109,9 @@ class StockRiskTool:
                         默认检查所有类型
         """
         try:
+            if not codes:
+                return json.dumps({"error": "未提供股票代码", "data": []}, ensure_ascii=False)
+
             if check_types is None:
                 check_types = ["st", "delisting", "financial", "audit"]
 

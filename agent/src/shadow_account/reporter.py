@@ -38,6 +38,9 @@ _CSS_TEMPLATE = "shadow_report.css"
 
 _MARKET_LABELS = {
     "china_a": "China A-share",
+    "us": "US equity",
+    "hk": "HK equity",
+    "crypto": "Crypto",
     "other": "Other",
 }
 

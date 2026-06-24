@@ -23,7 +23,7 @@ class TradingProfile:
 
     Args:
         id: Stable profile id used by CLI/tools.
-        connector: Broker/connector key, e.g. ``robinhood``.
+        connector: Broker/connector key, e.g. ``ibkr`` or ``robinhood``.
         label: Human-readable display label.
         environment: Paper or live account environment.
         transport: How Vibe-Trading reaches the connector.

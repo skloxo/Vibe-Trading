@@ -78,6 +78,12 @@ def test_new_sources_are_documented() -> None:
     new_sources = {
         "eastmoney",
         "sina",
+        "stooq",
+        "yahoo",
+        "finnhub",
+        "alphavantage",
+        "tiingo",
+        "fmp",
     }
     missing = new_sources - named
     assert not missing, f"data-routing SKILL.md missing new source rows: {sorted(missing)}"

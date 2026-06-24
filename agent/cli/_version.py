@@ -32,6 +32,15 @@ def _version_from_pyproject() -> str:
         return "unknown"
 
 
-__version__: Final[str] = "0.1.10-s1"
+try:
+    from importlib.metadata import PackageNotFoundError, version as _pkg_version
+
+    try:
+        __version__: Final[str] = _pkg_version("vibe-trading-ai")
+    except PackageNotFoundError:
+        __version__ = _version_from_pyproject()
+except ImportError:  # pragma: no cover — importlib.metadata is stdlib on 3.8+
+    __version__ = _version_from_pyproject()
+
 
 __all__ = ["__version__"]

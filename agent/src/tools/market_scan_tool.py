@@ -58,6 +58,19 @@ class MarketScanTool:
     def execute(self, scan_type: str = "oversold", threshold: float = 30,
                 limit: int = 20, **kwargs) -> str:
         try:
+            strategy = kwargs.get("strategy")
+            if strategy:
+                scan_type = strategy
+
+            _lazy_import()
+            valid_types = {
+                "oversold", "overbought", "golden_cross", "volume_breakout",
+                "limit_up", "limit_down", "active", "index", "sector",
+                "mid_trend", "leader_swing", "oversold_rebound"
+            }
+            if scan_type not in valid_types:
+                return json.dumps({"error": f"Invalid scan_type: {scan_type}", "data": [], "count": 0}, ensure_ascii=False)
+
             result = self._run(scan_type=scan_type, threshold=threshold, limit=limit, **kwargs)
             return json.dumps(result, ensure_ascii=False, default=str)
         except Exception as e:

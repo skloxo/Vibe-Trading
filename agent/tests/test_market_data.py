@@ -36,6 +36,11 @@ from src.market_data import (
         ("600519.SH", "tencent"),
         ("000001.SZ", "tencent"),
         ("430139.BJ", "tencent"),
+        ("AAPL.US", "yahoo"),
+        ("700.HK", "yahoo"),
+        ("00700.HK", "yahoo"),
+        ("BTC-USDT", "okx"),
+        ("ETH/USDT", "ccxt"),
         ("local:my_file", "local"),
         ("something_weird", "tushare"),  # documented fallback
     ],
@@ -147,14 +152,14 @@ class _PartialLoader:
 
 def test_fetch_explicit_source_normalizes_rows() -> None:
     out = fetch_market_data(
-        codes=["000001.SZ"],
+        codes=["AAPL.US"],
         start_date="2026-01-01",
         end_date="2026-01-02",
-        source="tencent",
+        source="yahoo",
         loader_resolver=lambda src: _StubLoader,
     )
-    assert "000001.SZ" in out
-    rows = out["000001.SZ"]
+    assert "AAPL.US" in out
+    rows = out["AAPL.US"]
     assert rows[0]["trade_date"] == "2026-01-01T00:00:00"  # index reset + isoformat
     assert rows[0]["close"] == 1.0
 
@@ -167,38 +172,38 @@ def test_fetch_auto_groups_by_detected_source() -> None:
         return _StubLoader
 
     out = fetch_market_data(
-        codes=["000001.SZ", "600519.SH"],
+        codes=["AAPL.US", "BTC-USDT"],
         start_date="2026-01-01",
         end_date="2026-01-02",
         source="auto",
         loader_resolver=resolver,
     )
-    # Both are A-share codes -> tencent source.
-    assert set(seen) == {"tencent"}
-    assert "000001.SZ" in out and "600519.SH" in out
+    # AAPL.US -> yahoo, BTC-USDT -> okx: two distinct loader groups resolved.
+    assert set(seen) == {"yahoo", "okx"}
+    assert "AAPL.US" in out and "BTC-USDT" in out
 
 
 def test_fetch_loader_error_falls_through_to_unresolved() -> None:
     out = fetch_market_data(
-        codes=["000001.SZ"],
+        codes=["X.US"],
         start_date="2026-01-01",
         end_date="2026-01-02",
-        source="tencent",
+        source="yahoo",
         loader_resolver=lambda src: _BadLoader,
     )
-    assert out["_unresolved"] == ["000001.SZ"]
+    assert out["_unresolved"] == ["X.US"]
 
 
 def test_fetch_missing_symbol_listed_as_unresolved() -> None:
     out = fetch_market_data(
-        codes=["000001.SZ", "600519.SH"],
+        codes=["A.US", "B.US"],
         start_date="2026-01-01",
         end_date="2026-01-02",
-        source="tencent",
+        source="yahoo",
         loader_resolver=lambda src: _PartialLoader,
     )
-    assert "000001.SZ" in out
-    assert out["_unresolved"] == ["600519.SH"]
+    assert "A.US" in out
+    assert out["_unresolved"] == ["B.US"]
 
 
 # --------------------------------------------------------------------------
@@ -208,14 +213,14 @@ def test_fetch_missing_symbol_listed_as_unresolved() -> None:
 
 def test_fetch_json_is_strict_and_parseable() -> None:
     payload = fetch_market_data_json(
-        codes=["000001.SZ"],
+        codes=["AAPL.US"],
         start_date="2026-01-01",
         end_date="2026-01-02",
-        source="tencent",
+        source="yahoo",
         loader_resolver=lambda src: _StubLoader,
     )
     parsed = json.loads(payload)  # must be valid JSON
-    assert "000001.SZ" in parsed
+    assert "AAPL.US" in parsed
 
 
 def test_fetch_json_rejects_nan_via_allow_nan_false() -> None:
@@ -231,11 +236,11 @@ def test_fetch_json_rejects_nan_via_allow_nan_false() -> None:
             return {codes[0]: pd.DataFrame({"close": [float("nan")]}, index=idx)}
 
     payload = fetch_market_data_json(
-        codes=["000001.SZ"],
+        codes=["A.US"],
         start_date="2026-01-01",
         end_date="2026-01-02",
-        source="tencent",
+        source="yahoo",
         loader_resolver=lambda src: _NanLoader,
     )
     parsed = json.loads(payload)
-    assert parsed["000001.SZ"][0]["close"] is None
+    assert parsed["A.US"][0]["close"] is None

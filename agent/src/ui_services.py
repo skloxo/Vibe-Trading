@@ -461,7 +461,12 @@ def reconstruct_price_series(run_dir: Path) -> List[Dict[str, Any]]:
 
     try:
         source = context.get("source", "tushare")
-        from backtest.loaders.tushare import DataLoader
+        if source == "okx":
+            from backtest.loaders.okx import DataLoader
+        elif source == "yfinance":
+            from backtest.loaders.yfinance_loader import DataLoader
+        else:
+            from backtest.loaders.tushare import DataLoader
         loader = DataLoader()
         data_map = loader.fetch(codes, fetch_start_date, end_date)
     except Exception as exc:

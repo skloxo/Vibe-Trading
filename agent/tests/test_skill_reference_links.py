@@ -27,10 +27,10 @@ from src.tools.read_file_tool import ReadFileTool
 _SKILLS_DIR = Path(__file__).resolve().parents[1] / "src" / "skills"
 
 # Skills whose SKILL.md links into a references/ and/or scripts/ tree.
-_SKILLS_UNDER_TEST = ("tushare", "eastmoney")
+_SKILLS_UNDER_TEST = ("tushare", "okx-market", "eastmoney", "sec-edgar", "yfinance")
 
 # Markdown link whose target is a references/*.md or scripts/*.py path, e.g.
-# "[label](tushare/references/foo/bar.md)"
+# "[label](tushare/references/foo/bar.md)" or "[ex](sec-edgar/scripts/x.py)".
 # The target itself may contain parentheses (some tushare filenames do, e.g.
 # "社融增量(月度).md"), so anchor on the trailing ".md)"/".py)" rather than the
 # first ")".
