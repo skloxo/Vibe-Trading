@@ -61,7 +61,10 @@ def test_loopback_upload_without_browser_origin_still_allowed_when_key_configure
 
     response = client.post(
         "/upload",
-        headers={"Host": "127.0.0.1:8899"},
+        headers={
+            "Host": "127.0.0.1:8899",
+            "Authorization": "Bearer secret",
+        },
         files={"file": ("note.txt", b"safe", "text/plain")},
     )
 
