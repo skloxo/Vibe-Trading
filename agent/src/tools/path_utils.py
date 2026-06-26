@@ -81,36 +81,53 @@ def _configured_file_roots() -> list[Path]:
 
 def _default_file_roots() -> list[Path]:
     """Return default roots for uploaded/imported user files."""
+    from src.config.paths import get_runtime_root, active_tenant_var
     cwd = Path.cwd().resolve()
-    home = Path.home().resolve()
     agent_root = _agent_root()
-    return [
-        agent_root / "uploads",
-        agent_root / "runs",
-        cwd / "uploads",
-        cwd / "data",
-        home / ".vibe-trading" / "uploads",
-        home / ".vibe-trading" / "imports",
-        # Allow access to all user-generated content under ~/.vibe-trading/
-        # (scripts, db, reports, stock_pools, skills, shadow_runs, etc.)
-        home / ".vibe-trading",
-    ]
+    runtime_root = get_runtime_root()
+    tenant = active_tenant_var.get()
+    if tenant == "default":
+        return [
+            agent_root / "uploads",
+            agent_root / "runs",
+            cwd / "uploads",
+            cwd / "data",
+            runtime_root / "uploads",
+            runtime_root / "imports",
+            # Allow access to all user-generated content under ~/.vibe-trading/ or tenant equivalent
+            runtime_root,
+        ]
+    else:
+        return [
+            runtime_root / "uploads",
+            runtime_root / "imports",
+            runtime_root,
+        ]
 
 
 def _default_run_roots() -> list[Path]:
     """Return default roots for generated backtest/tool run directories."""
     from src.swarm.store import swarm_runs_root
+    from src.config.paths import get_runtime_root, active_tenant_var
 
-    cwd = Path.cwd().resolve()
-    home = Path.home().resolve()
-    agent_root = _agent_root()
-    return [
-        agent_root / "runs",
-        swarm_runs_root(),
-        cwd / "runs",
-        home / ".vibe-trading" / "shadow_runs",
-        home / ".vibe-trading" / "runs",
-    ]
+    runtime_root = get_runtime_root()
+    tenant = active_tenant_var.get()
+    if tenant == "default":
+        cwd = Path.cwd().resolve()
+        agent_root = _agent_root()
+        return [
+            agent_root / "runs",
+            swarm_runs_root(),
+            cwd / "runs",
+            runtime_root / "shadow_runs",
+            runtime_root / "runs",
+        ]
+    else:
+        return [
+            swarm_runs_root(),
+            runtime_root / "shadow_runs",
+            runtime_root / "runs",
+        ]
 
 
 def allowed_file_roots() -> list[Path]:

@@ -156,7 +156,8 @@ class PersistentMemory:
         Args:
             memory_dir: Override memory directory (default: ~/.vibe-trading/memory/).
         """
-        self._dir = memory_dir or MEMORY_BASE
+        from src.config.paths import get_runtime_root
+        self._dir = memory_dir or (get_runtime_root() / "memory")
         self._dir.mkdir(parents=True, exist_ok=True)
         self._index_path = self._dir / "MEMORY.md"
         self._snapshot: str = ""

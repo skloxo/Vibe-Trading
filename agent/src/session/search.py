@@ -63,13 +63,14 @@ class SessionSearchIndex:
         - Bulk reindex from the file-based SessionStore
     """
 
-    def __init__(self, db_path: Path = _DB_PATH) -> None:
+    def __init__(self, db_path: Optional[Path] = None) -> None:
         """Initialize the search index.
 
         Args:
             db_path: Path to SQLite database file.
         """
-        self.db_path = db_path
+        from src.config.paths import get_runtime_root
+        self.db_path = db_path or (get_runtime_root() / "sessions.db")
         self.db_path.parent.mkdir(parents=True, exist_ok=True)
         self._conn: Optional[sqlite3.Connection] = None
         self._init_db()

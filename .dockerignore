@@ -31,7 +31,7 @@ agent/.tasks/
 agent/.env
 
 # Frontend build (built inside Docker, don't copy local)
-frontend/dist/
+# frontend/dist/
 frontend/node_modules/
 frontend/tsconfig.tsbuildinfo
 

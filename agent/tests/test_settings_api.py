@@ -220,7 +220,7 @@ def test_settings_reads_allow_loopback_without_bearer_even_when_api_auth_key_con
         headers={"Authorization": "Bearer settings-secret"},
     )
 
-    assert unauthenticated_response.status_code == 200
+    assert unauthenticated_response.status_code == 401
     assert authenticated_response.status_code == 200
     assert authenticated_response.json()["api_key_configured"] is True
     assert authenticated_response.json()["api_key_hint"] is None

@@ -73,7 +73,8 @@ def _default_db_path() -> Path:
     raw_path = os.getenv(_DB_PATH_ENV, "").strip()
     if raw_path:
         return Path(raw_path).expanduser()
-    return _DEFAULT_DB_PATH
+    from src.config.paths import get_runtime_root
+    return get_runtime_root() / "sessions.db"
 
 
 def _to_json_dict(value: object) -> dict:

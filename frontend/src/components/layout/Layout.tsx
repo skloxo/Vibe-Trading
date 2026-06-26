@@ -4,9 +4,11 @@ import { Link, Outlet, useLocation, useSearchParams } from "react-router-dom";
 import { Activity, BarChart3, Bot, FileText, Languages, Moon, Sun, Plus, Trash2, Pencil, MessageSquare, ChevronsLeft, ChevronsRight, Settings, Layers, Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useDarkMode } from "@/hooks/useDarkMode";
-import { api, type SessionItem } from "@/lib/api";
+import { api, isAuthRequiredError, type SessionItem, type UserProfile } from "@/lib/api";
 import { useAgentStore } from "@/stores/agent";
 import { ConnectionBanner } from "@/components/layout/ConnectionBanner";
+import { AuthBarrier } from "@/components/layout/AuthBarrier";
+import { setApiAuthKey } from "@/lib/apiAuth";
 
 // Bump on each release; one place keeps the footer in sync with package.json.
 const APP_VERSION = "v0.1.10-s1";
@@ -35,6 +37,29 @@ export function Layout() {
   const activeSessionId = searchParams.get("session");
   const streamingSessionId = useAgentStore(s => s.streamingSessionId);
 
+  const [profileLoading, setProfileLoading] = useState(true);
+  const [authFailed, setAuthFailed] = useState(false);
+  const [, setProfile] = useState<UserProfile | null>(null);
+
+  useEffect(() => {
+    let alive = true;
+    api.getSettingsProfile()
+      .then((p) => {
+        if (!alive) return;
+        setProfile(p);
+        setAuthFailed(false);
+        setProfileLoading(false);
+      })
+      .catch((err) => {
+        if (!alive) return;
+        if (isAuthRequiredError(err)) {
+          setAuthFailed(true);
+        }
+        setProfileLoading(false);
+      });
+    return () => { alive = false; };
+  }, []);
+
   useEffect(() => {
     localStorage.setItem("qa-sidebar", collapsed ? "collapsed" : "expanded");
   }, [collapsed]);
@@ -49,7 +74,11 @@ export function Layout() {
   // Load sessions on mount. Also refresh when navigating TO /agent or when
   // the active session changes (covers new session creation from Agent).
   const isAgentPage = pathname.startsWith("/agent");
-  useEffect(() => { loadSessions(); }, [isAgentPage, activeSessionId]);
+  useEffect(() => {
+    if (!authFailed && !profileLoading) {
+      loadSessions();
+    }
+  }, [isAgentPage, activeSessionId, authFailed, profileLoading]);
 
   const [deleteTarget, setDeleteTarget] = useState<string | null>(null);
   const [renameTarget, setRenameTarget] = useState<string | null>(null);
@@ -71,6 +100,29 @@ export function Layout() {
     } catch { /* ignore */ }
     setRenameTarget(null);
   };
+
+  if (profileLoading) {
+    return (
+      <div className="flex h-screen items-center justify-center bg-background">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    );
+  }
+
+  if (authFailed) {
+    return (
+      <div className="flex h-screen items-center justify-center bg-background">
+        <div className="mx-auto max-w-md w-full p-6 space-y-6">
+          <AuthBarrier
+            onLogin={(key) => {
+              setApiAuthKey(key);
+              window.location.reload();
+            }}
+          />
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="flex h-screen bg-background">

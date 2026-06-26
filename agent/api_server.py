@@ -17,6 +17,7 @@ import signal
 import time
 import csv
 import uuid
+import hashlib
 import urllib.parse
 from datetime import datetime
 from pathlib import Path
@@ -44,14 +45,95 @@ RUNS_DIR = Path(__file__).resolve().parent / "runs"
 SESSIONS_DIR = Path(__file__).resolve().parent / "sessions"
 UPLOADS_DIR = Path(__file__).resolve().parent / "uploads"
 AGENT_DIR = Path(__file__).resolve().parent
-ENV_PATH = AGENT_DIR / ".env"
+
+class _DynamicEnvPath(type(Path())):
+    def __new__(cls):
+        return super().__new__(cls, AGENT_DIR / ".env")
+
+    @property
+    def _actual(self) -> Path:
+        from src.config.paths import active_tenant_var
+        tenant = active_tenant_var.get()
+        if tenant == "default":
+            return AGENT_DIR / ".env"
+        return Path.home() / ".vibe-trading" / "tenants" / tenant / ".env"
+
+    def exists(self) -> bool:
+        return self._actual.exists()
+
+    @property
+    def parent(self) -> Path:
+        return self._actual.parent
+
+    def write_text(self, *args, **kwargs):
+        return self._actual.write_text(*args, **kwargs)
+
+    def read_text(self, *args, **kwargs):
+        return self._actual.read_text(*args, **kwargs)
+
+    def resolve(self, *args, **kwargs) -> Path:
+        return self._actual.resolve(*args, **kwargs)
+
+    @property
+    def name(self) -> str:
+        return self._actual.name
+
+    def open(self, *args, **kwargs):
+        return self._actual.open(*args, **kwargs)
+
+    def __str__(self):
+        return str(self._actual)
+
+    def __repr__(self):
+        return f"DynamicEnvPath({self._actual})"
+
+    def __fspath__(self):
+        return str(self._actual)
+
+ENV_PATH = _DynamicEnvPath()
 ENV_EXAMPLE_PATH = AGENT_DIR / ".env.example"
+
 
 MAX_UPLOAD_SIZE = 50 * 1024 * 1024  # 50 MB
 _UPLOAD_CHUNK_SIZE = 1024 * 1024  # 1 MB
 
 console = Console()
 logger = logging.getLogger(__name__)
+
+
+def _load_tenant_keys() -> list[dict]:
+    """Load tenant API keys from ~/.vibe-trading/tenants/tenant_keys.json."""
+    path = Path.home() / ".vibe-trading" / "tenants" / "tenant_keys.json"
+    if not path.exists():
+        return []
+    try:
+        return json.loads(path.read_text(encoding="utf-8"))
+    except Exception as e:
+        logger.error(f"Failed to load tenant keys: {e}")
+        return []
+
+
+def _save_tenant_keys(keys: list[dict]) -> None:
+    """Save tenant API keys to ~/.vibe-trading/tenants/tenant_keys.json."""
+    path = Path.home() / ".vibe-trading" / "tenants" / "tenant_keys.json"
+    try:
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(json.dumps(keys, indent=2, ensure_ascii=False), encoding="utf-8")
+    except Exception as e:
+        logger.error(f"Failed to save tenant keys: {e}")
+
+
+def _set_tenant_from_matched_key(matched: str) -> None:
+    from src.config.paths import active_tenant_var
+    if not matched:
+        active_tenant_var.set("default")
+        return
+    admin_keys = _configured_api_keys()
+    if any(hmac.compare_digest(matched, k) for k in admin_keys):
+        active_tenant_var.set("default")
+    else:
+        tenant_id = "tenant_" + hashlib.sha256(matched.encode("utf-8")).hexdigest()[:12]
+        active_tenant_var.set(tenant_id)
 
 
 # ============================================================================
@@ -159,6 +241,34 @@ class LLMProviderOption(BaseModel):
     login_command: Optional[str] = None
 
 
+class ProfileResponse(BaseModel):
+    """Current login profile."""
+    role: str
+    tenant_id: str
+    name: Optional[str] = None
+    is_local: bool = False
+
+
+class TenantKeyItem(BaseModel):
+    """Tenant key definition."""
+    key: str
+    tenant_id: str
+    name: str
+    created_at: str
+    is_active: bool
+
+
+class CreateTenantKeyRequest(BaseModel):
+    """Request payload to create a tenant key."""
+    name: str = Field(..., min_length=1)
+
+
+class UpdateTenantKeyRequest(BaseModel):
+    """Request payload to update a tenant key."""
+    name: Optional[str] = None
+    is_active: Optional[bool] = None
+
+
 class LLMSettingsResponse(BaseModel):
     """Current LLM runtime settings."""
 
@@ -175,14 +285,15 @@ class LLMSettingsResponse(BaseModel):
     reasoning_effort: str
     sse_timeout_seconds: int
     env_path: str
+    is_custom: bool = True
     providers: List[LLMProviderOption]
 
 
 class UpdateLLMSettingsRequest(BaseModel):
     """Update LLM settings persisted to agent/.env."""
 
-    provider: str = Field(..., min_length=1)
-    model_name: str = Field(..., min_length=1)
+    provider: Optional[str] = None
+    model_name: Optional[str] = None
     base_url: Optional[str] = None
     api_key: Optional[str] = None
     clear_api_key: bool = False
@@ -190,6 +301,7 @@ class UpdateLLMSettingsRequest(BaseModel):
     timeout_seconds: int = Field(120, ge=1, le=3600)
     max_retries: int = Field(2, ge=0, le=20)
     reasoning_effort: Optional[str] = None
+    use_default: bool = False
 
 
 class DataSourceSettingsResponse(BaseModel):
@@ -205,6 +317,7 @@ class DataSourceSettingsResponse(BaseModel):
     baostock_installed: bool
     baostock_message: str
     env_path: str
+    is_custom: bool = True
 
 
 class UpdateDataSourceSettingsRequest(BaseModel):
@@ -216,6 +329,7 @@ class UpdateDataSourceSettingsRequest(BaseModel):
     clear_iwencai_key: bool = False
     fred_api_key: Optional[str] = None
     clear_fred_api_key: bool = False
+    use_default: bool = False
 
 
 class FeishuChannelResponse(BaseModel):
@@ -677,17 +791,26 @@ FEISHU_SECRET_PLACEHOLDERS: set[str] = {"", "your-feishu-app-secret"}
 FEISHU_CHANNELS_JSON = Path(__file__).resolve().parent / "sessions" / "feishu_channels.json"
 
 
+def _get_feishu_channels_json_path() -> Path:
+    from src.config.paths import active_tenant_var
+    tenant = active_tenant_var.get()
+    if tenant == "default":
+        return FEISHU_CHANNELS_JSON
+    return Path.home() / ".vibe-trading" / "tenants" / tenant / "feishu_channels.json"
+
+
 def _load_feishu_channels() -> list[dict[str, Any]]:
     """Load Feishu channels from the persistent JSON file. Handles legacy migration."""
     channels = []
-    if FEISHU_CHANNELS_JSON.exists():
+    path = _get_feishu_channels_json_path()
+    if path.exists():
         try:
-            channels = json.loads(FEISHU_CHANNELS_JSON.read_text(encoding="utf-8"))
+            channels = json.loads(path.read_text(encoding="utf-8"))
         except Exception as e:
-            logger.error("Failed to read feishu_channels.json: %s", e)
+            logger.error("Failed to read %s: %s", path, e)
 
     # Auto-migration from legacy .env values
-    if not channels:
+    if not channels and path == FEISHU_CHANNELS_JSON:
         env_values = _read_settings_env_values()
         app_id = env_values.get("FEISHU_APP_ID", "").strip()
         app_secret = env_values.get("FEISHU_APP_SECRET", "").strip()
@@ -723,8 +846,9 @@ def _load_feishu_channels() -> list[dict[str, Any]]:
 
 def _save_feishu_channels(channels: list[dict[str, Any]]) -> None:
     """Save Feishu channels to the persistent JSON file."""
-    FEISHU_CHANNELS_JSON.parent.mkdir(parents=True, exist_ok=True)
-    FEISHU_CHANNELS_JSON.write_text(json.dumps(channels, indent=2, ensure_ascii=False), encoding="utf-8")
+    path = _get_feishu_channels_json_path()
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(json.dumps(channels, indent=2, ensure_ascii=False), encoding="utf-8")
 
 
 async def _reload_platform_manager() -> None:
@@ -737,24 +861,42 @@ async def _reload_platform_manager() -> None:
                 await _platform_manager.stop()
             
             from src.platforms import PlatformManager, FeishuAdapter
-            _platform_manager = PlatformManager(session_service)
+            _platform_manager = PlatformManager(session_service, tenant_id="default")
             
-            channels = _load_feishu_channels()
+            tenants = ["default"]
+            try:
+                for k in _load_tenant_keys():
+                    if k.get("is_active", True):
+                        tenants.append(k["tenant_id"])
+            except Exception as e:
+                logger.error("Failed to load tenant keys during platform reload: %s", e)
+
+            from src.config.paths import active_tenant_var
+            original_tenant = active_tenant_var.get()
+            
             registered_count = 0
-            for chan in channels:
-                if chan.get("enabled", True):
-                    adapter = FeishuAdapter(
-                        channel_id=chan["id"],
-                        name=chan["name"],
-                        app_id=chan["app_id"],
-                        app_secret=chan["app_secret"],
-                        allowed_users=chan.get("allowed_users", ""),
-                        allow_all_users=chan.get("allow_all_users", False),
-                    )
-                    _platform_manager.register_adapter(adapter)
-                    registered_count += 1
+            try:
+                for t in tenants:
+                    active_tenant_var.set(t)
+                    channels = _load_feishu_channels()
+                    for chan in channels:
+                        if chan.get("enabled", True):
+                            adapter = FeishuAdapter(
+                                channel_id=chan["id"],
+                                name=chan["name"],
+                                app_id=chan["app_id"],
+                                app_secret=chan["app_secret"],
+                                allowed_users=chan.get("allowed_users", ""),
+                                allow_all_users=chan.get("allow_all_users", False),
+                                tenant_id=t,
+                            )
+                            _platform_manager.register_adapter(adapter)
+                            registered_count += 1
+            finally:
+                active_tenant_var.set(original_tenant)
+
             if registered_count > 0:
-                logger.info(f"[Platform] Registered and started {registered_count} Feishu adapter(s).")
+                logger.info(f"[Platform] Registered and started {registered_count} Feishu adapter(s) across all active tenants.")
             await _platform_manager.start()
         except Exception as e:
             logger.exception("[Platform] Failed to reload platform manager: %s", e)
@@ -799,9 +941,13 @@ _SHELL_TOOLS_ENV = "VIBE_TRADING_ENABLE_SHELL_TOOLS"
 _DOCKER_LOOPBACK_ENV = "VIBE_TRADING_TRUST_DOCKER_LOOPBACK"
 
 
-def _configured_api_key() -> str:
-    """Return the current API auth key, if configured."""
-    return os.getenv("API_AUTH_KEY") or _API_KEY or ""
+def _configured_api_keys() -> list[str]:
+    """Return configured admin API keys."""
+    raw = os.getenv("API_AUTH_KEYS")
+    if raw:
+        return [k.strip() for k in raw.split(",") if k.strip()]
+    single = os.getenv("API_AUTH_KEY")
+    return [single.strip()] if single else []
 
 
 async def require_auth(
@@ -895,25 +1041,54 @@ def _require_shutdown_authorization(
     """Authorize the local shutdown control-plane action.
 
     Loopback peer IP alone is not enough for this browser-reachable, destructive
-    action. When API_AUTH_KEY is configured, require the Bearer token even for
+    action. When API_AUTH_KEY/KEYS is configured, require the Bearer token even for
     loopback requests; otherwise preserve local dev-mode shutdown for direct
     loopback clients while rejecting cross-site browser requests.
     """
+    from src.config.paths import active_tenant_var
     _reject_cross_site_browser_request(request)
-    api_key = _configured_api_key()
-    if api_key:
-        token = _auth_credential_from_header_or_query(cred, None, allow_query=False)
-        if not token or not hmac.compare_digest(token, api_key):
-            raise HTTPException(status_code=401, detail="Invalid or missing API key")
+    
+    admin_keys = _configured_api_keys()
+    tenant_keys = [item["key"] for item in _load_tenant_keys() if item.get("is_active", True)]
+    has_keys = bool(admin_keys) or bool(tenant_keys)
+
+    if has_keys:
+        matched = _validate_api_key(cred, None, allow_query=False)
+        _set_tenant_from_matched_key(matched)
         return
-    if not _is_local_client(request):
+
+    if not _is_local_or_lan_client(request):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="API_AUTH_KEY is required for non-local API access",
         )
+    active_tenant_var.set("default")
 
 
 _SAFE_BROWSER_METHODS = {"GET", "HEAD", "OPTIONS"}
+
+
+def _validate_api_key(
+    cred: Optional[HTTPAuthorizationCredentials],
+    query_api_key: Optional[str] = None,
+    *,
+    allow_query: bool = False,
+) -> str:
+    """Validate token against configured api_keys (both admin and tenant keys). Return the matched key on success, or raise 401."""
+    admin_keys = _configured_api_keys()
+    tenant_keys = [item["key"] for item in _load_tenant_keys() if item.get("is_active", True)]
+    if not admin_keys and not tenant_keys:
+        return ""
+    token = _auth_credential_from_header_or_query(cred, query_api_key, allow_query=allow_query)
+    if not token:
+        raise HTTPException(status_code=401, detail="Invalid or missing API key")
+    for k in admin_keys:
+        if hmac.compare_digest(token, k):
+            return k
+    for k in tenant_keys:
+        if hmac.compare_digest(token, k):
+            return k
+    raise HTTPException(status_code=401, detail="Invalid or missing API key")
 
 
 def _validate_api_auth(
@@ -929,22 +1104,36 @@ def _validate_api_auth(
     # trust, otherwise a malicious page can drive local POST/PUT/DELETE routes.
     if request.method.upper() not in _SAFE_BROWSER_METHODS:
         _reject_cross_site_browser_request(request)
+    admin_keys = _configured_api_keys()
+    tenant_keys = [item["key"] for item in _load_tenant_keys() if item.get("is_active", True)]
+    has_keys = bool(admin_keys) or bool(tenant_keys)
 
-    # Loopback clients are always trusted, even when API_AUTH_KEY is set.
-    # The key only gates non-local (LAN/remote) access.
-    if _is_local_client(request):
+    if _is_local_or_lan_client(request):
+        if request.headers.get("x-vibe-scope") == "global":
+            from src.config.paths import active_tenant_var
+            active_tenant_var.set("default")
+            return
+
+        token = _auth_credential_from_header_or_query(cred, query_api_key, allow_query=allow_query)
+        if token:
+            matched = _validate_api_key(cred, query_api_key, allow_query=allow_query)
+            _set_tenant_from_matched_key(matched)
+        else:
+            if has_keys:
+                raise HTTPException(status_code=401, detail="Authentication required")
+            from src.config.paths import active_tenant_var
+            active_tenant_var.set("default")
         return
 
-    api_key = _configured_api_key()
-    if not api_key:
+    if not has_keys:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="API_AUTH_KEY is required for non-local API access",
         )
 
-    token = _auth_credential_from_header_or_query(cred, query_api_key, allow_query=allow_query)
-    if not token or not hmac.compare_digest(token, api_key):
-        raise HTTPException(status_code=401, detail="Invalid or missing API key")
+    matched = _validate_api_key(cred, query_api_key, allow_query=allow_query)
+    _set_tenant_from_matched_key(matched)
+
 
 
 def _is_local_client(request: Request) -> bool:
@@ -959,6 +1148,52 @@ def _is_local_client(request: Request) -> bool:
     if ip.is_loopback:
         return True
     return _trusted_docker_loopback_ip(ip)
+
+
+def _is_local_or_lan_client(request: Request) -> bool:
+    """Return whether the request originates from a local loopback or LAN client, both by connection IP and Host header."""
+    # 1. Check connection IP (request.client.host)
+    host = request.client.host if request.client else ""
+    is_conn_local = False
+    if host in {"localhost", "testclient", "testserver"}:
+        is_conn_local = True
+    else:
+        try:
+            ip = ipaddress.ip_address(host)
+            is_conn_local = (
+                ip.is_loopback or
+                ip.is_link_local or
+                ip in ipaddress.ip_network("10.0.0.0/8") or
+                ip in ipaddress.ip_network("172.16.0.0/12") or
+                ip in ipaddress.ip_network("192.168.0.0/16") or
+                _trusted_docker_loopback_ip(ip)
+            )
+        except ValueError:
+            pass
+
+    if not is_conn_local:
+        return False
+
+    # 2. Check Host header (e.g. to catch public IP access like 8.129.0.26 via port forwarding)
+    req_host = request.headers.get("host", "")
+    normalized_host = _host_without_port(req_host)
+
+    if normalized_host in {"localhost", "testclient", "testserver"}:
+        return True
+
+    try:
+        ip = ipaddress.ip_address(normalized_host)
+        return (
+            ip.is_loopback or
+            ip.is_link_local or
+            ip in ipaddress.ip_network("10.0.0.0/8") or
+            ip in ipaddress.ip_network("172.16.0.0/12") or
+            ip in ipaddress.ip_network("192.168.0.0/16")
+        )
+    except ValueError:
+        # If Host header is a domain name, check if it's localhost or testclient or testserver.
+        # Other domains (e.g. public domains) are considered non-local.
+        return False
 
 
 def _env_flag_enabled(name: str) -> bool:
@@ -1010,19 +1245,21 @@ def _shell_tools_enabled_for_request(request: Request) -> bool:
     """Return whether this API request may expose shell tools to the agent.
 
     Decision order:
-    1. If ``VIBE_TRADING_ENABLE_SHELL_TOOLS`` is explicitly set, honour it
+    1. If this is a regular tenant session (not default), shell tools must be disabled for security.
+    2. If ``VIBE_TRADING_ENABLE_SHELL_TOOLS`` is explicitly set, honour it
        (explicit opt-out takes precedence).
-    2. If ``API_AUTH_KEY`` is configured the API requires authentication;
+    3. If ``API_AUTH_KEY`` is configured the API requires authentication;
        callers that passed auth are trusted, so shell tools default on.
-       This avoids a common deployment pitfall where operators configure
-       auth but forget to set the shell-tools flag.
-    3. Otherwise shell tools stay off (secure default).
+    4. Otherwise shell tools stay off (secure default).
     """
+    from src.config.paths import active_tenant_var
+    if active_tenant_var.get() != "default":
+        return False
     explicit = os.getenv(_SHELL_TOOLS_ENV)
     if explicit is not None:
         return _env_flag_enabled(_SHELL_TOOLS_ENV)
     # Authenticated API → implicitly trust the caller
-    if _configured_api_key():
+    if _configured_api_keys():
         return True
     return False
 
@@ -1037,10 +1274,12 @@ async def require_local_or_auth(
     loopback clients so an API server bound to 0.0.0.0 cannot accept remote
     credential reads or writes in dev mode.
     """
-    if _configured_api_key():
+    admin_keys = _configured_api_keys()
+    tenant_keys = [item["key"] for item in _load_tenant_keys() if item.get("is_active", True)]
+    if admin_keys or tenant_keys:
         await require_auth(request, cred)
         return
-    if not _is_local_client(request):
+    if not _is_local_or_lan_client(request):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Settings access requires API_AUTH_KEY or a local loopback client",
@@ -1051,24 +1290,21 @@ async def require_settings_write_auth(
     request: Request,
     cred: Optional[HTTPAuthorizationCredentials] = Security(_security),
 ) -> None:
-    """Require explicit authorization before changing credential-routing settings.
+    """Require explicit authorization before changing settings. Supports multi-tenant writes."""
+    await require_auth(request, cred)
 
-    Settings writes can redirect stored provider credentials to a different
-    endpoint. When an API key is configured, loopback peer IP alone is not a
-    sufficient user-intent signal because a browser can reach local APIs after
-    DNS rebinding.
-    """
-    api_key = _configured_api_key()
-    if api_key:
-        token = _auth_credential_from_header_or_query(cred, None, allow_query=False)
-        if not token or not hmac.compare_digest(token, api_key):
-            raise HTTPException(status_code=401, detail="Invalid or missing API key")
-        return
 
-    if not _is_local_client(request):
+async def require_admin(
+    request: Request,
+    cred: Optional[HTTPAuthorizationCredentials] = Security(_security),
+) -> None:
+    """Require that the client has administrative privileges (default tenant)."""
+    await require_auth(request, cred)
+    from src.config.paths import active_tenant_var
+    if active_tenant_var.get() != "default" and not _is_local_or_lan_client(request):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail="Settings writes require API_AUTH_KEY or a local loopback client",
+            detail="Admin privileges required",
         )
 
 
@@ -1110,6 +1346,7 @@ TUSHARE_TOKEN_PLACEHOLDERS = {"", "your-tushare-token"}
 
 def _ensure_agent_env_file() -> Path:
     """Ensure the project-local agent/.env exists."""
+    ENV_PATH.parent.mkdir(parents=True, exist_ok=True)
     if not ENV_PATH.exists():
         ENV_PATH.write_text("# Created by Vibe-Trading Web UI settings.\n", encoding="utf-8")
     return ENV_PATH
@@ -1142,16 +1379,31 @@ def _read_env_values(path: Path) -> Dict[str, str]:
 
 
 def _read_settings_env_values() -> Dict[str, str]:
-    """Read settings without creating agent/.env.
+    """Read settings with support for default-admin config inheritance."""
+    from src.config.paths import active_tenant_var
+    tenant = active_tenant_var.get()
+    
+    # If ENV_PATH is monkeypatched in tests (not _DynamicEnvPath), use it as the admin env.
+    if not isinstance(ENV_PATH, _DynamicEnvPath):
+        admin_env = ENV_PATH
+    else:
+        admin_env = AGENT_DIR / ".env"
 
-    Prefer the user's active agent/.env. If it does not exist yet, fall back to
-    agent/.env.example for display defaults only.
-    """
+    base_values = {}
+    if admin_env.exists():
+        base_values = _read_env_values(admin_env)
+    elif ENV_EXAMPLE_PATH.exists():
+        base_values = _read_env_values(ENV_EXAMPLE_PATH)
+
+    if tenant == "default":
+        return base_values
+
+    tenant_values = {}
     if ENV_PATH.exists():
-        return _read_env_values(ENV_PATH)
-    if ENV_EXAMPLE_PATH.exists():
-        return _read_env_values(ENV_EXAMPLE_PATH)
-    return {}
+        tenant_values = _read_env_values(ENV_PATH)
+        
+    merged = {**base_values, **tenant_values}
+    return merged
 
 
 def _project_relative_path(path: Path) -> str:
@@ -1199,6 +1451,25 @@ def _write_env_values(path: Path, updates: Dict[str, str]) -> None:
     path.write_text("\n".join(lines) + "\n", encoding="utf-8")
 
 
+def _delete_env_values(path: Path, keys_to_delete: list[str]) -> None:
+    """Delete keys from a dotenv file."""
+    if not path.exists():
+        return
+    lines = path.read_text(encoding="utf-8").splitlines()
+    new_lines = []
+    to_delete_set = set(keys_to_delete)
+    for line in lines:
+        stripped = line.lstrip()
+        if stripped.startswith("#") or "=" not in stripped:
+            new_lines.append(line)
+            continue
+        key = stripped.split("=", 1)[0].strip()
+        if key in to_delete_set:
+            continue
+        new_lines.append(line)
+    path.write_text("\n".join(new_lines) + "\n", encoding="utf-8")
+
+
 def _is_configured_secret(value: str, placeholders: set[str]) -> bool:
     """Return True when a secret is set and not a documented placeholder."""
     normalized = value.strip().strip('"').strip("'")
@@ -1228,16 +1499,40 @@ def _build_llm_settings_response(values: Optional[Dict[str, str]] = None) -> LLM
     provider = LLM_PROVIDER_BY_NAME.get(provider_name, LLM_PROVIDER_BY_NAME["openai"])
     api_key = env_values.get(provider.api_key_env or "", "") if provider.api_key_env else ""
     api_key_configured = _is_configured_secret(api_key, LLM_API_KEY_PLACEHOLDERS)
+    
+    from src.config.paths import active_tenant_var
+    tenant = active_tenant_var.get()
+    
     api_key_hint = None
     if provider.auth_type == "oauth":
         try:
             from src.providers.openai_codex import get_openai_codex_login_status
-
             token = get_openai_codex_login_status()
         except Exception:
             token = None
         api_key_configured = bool(token)
         api_key_hint = None
+    else:
+        if tenant != "default":
+            # Mask inherited global key
+            tenant_env = Path.home() / ".vibe-trading" / "tenants" / tenant / ".env"
+            tenant_has_key = False
+            if tenant_env.exists():
+                tenant_vals = _read_env_values(tenant_env)
+                if provider.api_key_env and provider.api_key_env in tenant_vals:
+                    tenant_has_key = _is_configured_secret(tenant_vals[provider.api_key_env], LLM_API_KEY_PLACEHOLDERS)
+            if api_key_configured and not tenant_has_key:
+                api_key_hint = "********"
+
+    is_custom = True
+    if tenant != "default":
+        tenant_env = Path.home() / ".vibe-trading" / "tenants" / tenant / ".env"
+        if not tenant_env.exists():
+            is_custom = False
+        else:
+            tenant_vals = _read_env_values(tenant_env)
+            is_custom = "LANGCHAIN_PROVIDER" in tenant_vals
+
     return LLMSettingsResponse(
         provider=provider.name,
         model_name=env_values.get("LANGCHAIN_MODEL_NAME", provider.default_model),
@@ -1252,8 +1547,10 @@ def _build_llm_settings_response(values: Optional[Dict[str, str]] = None) -> LLM
         reasoning_effort=env_values.get("LANGCHAIN_REASONING_EFFORT", "").strip().lower(),
         sse_timeout_seconds=_coerce_int(env_values.get("VIBE_TRADING_SSE_TIMEOUT", "90"), 90),
         env_path=_project_relative_path(ENV_PATH),
+        is_custom=is_custom,
         providers=LLM_PROVIDERS,
     )
+
 
 
 def _baostock_supported() -> bool:
@@ -1290,18 +1587,49 @@ def _build_data_source_settings_response(values: Optional[Dict[str, str]] = None
         baostock_message = "BaoStock package is installed, but this project has no BaoStock loader."
     else:
         baostock_message = "No BaoStock loader is registered in this project."
+
+    from src.config.paths import active_tenant_var
+    tenant = active_tenant_var.get()
+    
+    tushare_token_hint = None
+    iwencai_key_hint = None
+    fred_api_key_hint = None
+    if tenant != "default":
+        tenant_env = Path.home() / ".vibe-trading" / "tenants" / tenant / ".env"
+        tenant_vals = {}
+        if tenant_env.exists():
+            tenant_vals = _read_env_values(tenant_env)
+        
+        if token_configured and not _is_configured_secret(tenant_vals.get("TUSHARE_TOKEN", ""), TUSHARE_TOKEN_PLACEHOLDERS):
+            tushare_token_hint = "********"
+        if iwencai_key_configured and not _is_configured_secret(tenant_vals.get("VIBE_TRADING_IWENCAI_KEY", ""), IWENCAI_KEY_PLACEHOLDERS):
+            iwencai_key_hint = "********"
+        if fred_key_configured and not _is_configured_secret(tenant_vals.get("FRED_API_KEY", ""), FRED_API_KEY_PLACEHOLDERS):
+            fred_api_key_hint = "********"
+
+    is_custom = True
+    if tenant != "default":
+        tenant_env = Path.home() / ".vibe-trading" / "tenants" / tenant / ".env"
+        if not tenant_env.exists():
+            is_custom = False
+        else:
+            tenant_vals = _read_env_values(tenant_env)
+            is_custom = any(k in tenant_vals for k in ["TUSHARE_TOKEN", "FRED_API_KEY", "VIBE_TRADING_IWENCAI_KEY"])
+
     return DataSourceSettingsResponse(
         tushare_token_configured=token_configured,
-        tushare_token_hint=None,
+        tushare_token_hint=tushare_token_hint,
         iwencai_key_configured=iwencai_key_configured,
-        iwencai_key_hint=None,
+        iwencai_key_hint=iwencai_key_hint,
         fred_api_key_configured=fred_key_configured,
-        fred_api_key_hint=None,
+        fred_api_key_hint=fred_api_key_hint,
         baostock_supported=supported,
         baostock_installed=installed,
         baostock_message=baostock_message,
         env_path=_project_relative_path(ENV_PATH),
+        is_custom=is_custom,
     )
+
 
 
 def _sync_runtime_env(provider: LLMProviderOption, updates: Dict[str, str]) -> None:
@@ -1730,6 +2058,156 @@ async def list_runs(limit: int = 20):
 
 
 @app.get(
+    "/settings/profile",
+    response_model=ProfileResponse,
+    dependencies=[Depends(require_local_or_auth)],
+)
+async def get_settings_profile(request: Request):
+    """Return login identity and active workspace/tenant info."""
+    from src.config.paths import active_tenant_var
+    tenant = active_tenant_var.get()
+    role = "admin" if tenant == "default" else "tenant"
+    name = None
+    if tenant != "default":
+        for item in _load_tenant_keys():
+            if item.get("tenant_id") == tenant:
+                name = item.get("name")
+                break
+    is_local = _is_local_or_lan_client(request)
+    return ProfileResponse(role=role, tenant_id=tenant, name=name, is_local=is_local)
+
+
+@app.post(
+    "/settings/register",
+    response_model=TenantKeyItem,
+)
+async def register_tenant(payload: CreateTenantKeyRequest):
+    """Public tenant self-registration endpoint."""
+    import secrets
+    import datetime
+    
+    name = payload.name.strip()
+    # 1. 验证格式与长度 (2-20字符，中英文、数字、下划线、减号、空格)
+    if not re.match(r"^[\u4e00-\u9fa5a-zA-Z0-9_\-\s]{2,20}$", name):
+        raise HTTPException(
+            status_code=400,
+            detail="Nickname must be 2-20 characters, containing only letters, numbers, Chinese, spaces, dashes or underscores."
+        )
+        
+    # 2. 查重
+    keys = _load_tenant_keys()
+    normalized_name = name.lower()
+    for k in keys:
+        if k["name"].strip().lower() == normalized_name:
+            raise HTTPException(status_code=400, detail="Tenant name already exists")
+            
+    # 3. 生成密钥与 tenant_id
+    raw_key = "vibe_t_" + secrets.token_hex(16)
+    tenant_id = "tenant_" + hashlib.sha256(raw_key.encode("utf-8")).hexdigest()[:12]
+    
+    new_key = {
+        "key": raw_key,
+        "tenant_id": tenant_id,
+        "name": name,
+        "created_at": datetime.datetime.now(datetime.timezone.utc).isoformat(),
+        "is_active": True,
+    }
+    keys.append(new_key)
+    _save_tenant_keys(keys)
+    
+    # 4. 创建隔离目录
+    tenant_dir = Path.home() / ".vibe-trading" / "tenants" / tenant_id
+    tenant_dir.mkdir(parents=True, exist_ok=True)
+    
+    # 初始化专属的配置说明文件
+    env_file = tenant_dir / ".env"
+    if not env_file.exists():
+        env_file.write_text(f"# Created for tenant: {name}\n", encoding="utf-8")
+        
+    return TenantKeyItem(**new_key)
+
+
+@app.get(
+    "/admin/tenants/keys",
+    response_model=List[TenantKeyItem],
+    dependencies=[Depends(require_admin)],
+)
+async def get_tenant_keys():
+    """List all configured tenant API keys."""
+    keys = _load_tenant_keys()
+    return [TenantKeyItem(**k) for k in keys]
+
+
+@app.post(
+    "/admin/tenants/keys",
+    response_model=TenantKeyItem,
+    dependencies=[Depends(require_admin)],
+)
+async def create_tenant_key(payload: CreateTenantKeyRequest):
+    """Generate a new tenant API key and setup workspace."""
+    import secrets
+    import datetime
+    
+    raw_key = "vibe_t_" + secrets.token_hex(16)
+    tenant_id = "tenant_" + hashlib.sha256(raw_key.encode("utf-8")).hexdigest()[:12]
+    
+    keys = _load_tenant_keys()
+    new_key = {
+        "key": raw_key,
+        "tenant_id": tenant_id,
+        "name": payload.name.strip(),
+        "created_at": datetime.datetime.now(datetime.timezone.utc).isoformat(),
+        "is_active": True,
+    }
+    keys.append(new_key)
+    _save_tenant_keys(keys)
+    
+    tenant_dir = Path.home() / ".vibe-trading" / "tenants" / tenant_id
+    tenant_dir.mkdir(parents=True, exist_ok=True)
+    
+    return TenantKeyItem(**new_key)
+
+
+@app.put(
+    "/admin/tenants/keys/{tenant_id}",
+    response_model=TenantKeyItem,
+    dependencies=[Depends(require_admin)],
+)
+async def update_tenant_key(tenant_id: str, payload: UpdateTenantKeyRequest):
+    """Update status or name of an existing tenant key."""
+    keys = _load_tenant_keys()
+    matched = None
+    for k in keys:
+        if k["tenant_id"] == tenant_id:
+            matched = k
+            break
+    if not matched:
+        raise HTTPException(status_code=404, detail="Tenant key not found")
+    
+    if payload.name is not None:
+        matched["name"] = payload.name.strip()
+    if payload.is_active is not None:
+        matched["is_active"] = payload.is_active
+        
+    _save_tenant_keys(keys)
+    return TenantKeyItem(**matched)
+
+
+@app.delete(
+    "/admin/tenants/keys/{tenant_id}",
+    dependencies=[Depends(require_admin)],
+)
+async def delete_tenant_key(tenant_id: str):
+    """Delete a tenant key (invalidating it instantly)."""
+    keys = _load_tenant_keys()
+    filtered_keys = [k for k in keys if k["tenant_id"] != tenant_id]
+    if len(filtered_keys) == len(keys):
+        raise HTTPException(status_code=404, detail="Tenant key not found")
+    _save_tenant_keys(filtered_keys)
+    return {"status": "success"}
+
+
+@app.get(
     "/settings/llm",
     response_model=LLMSettingsResponse,
     dependencies=[Depends(require_local_or_auth)],
@@ -1742,6 +2220,42 @@ async def get_llm_settings():
 @app.put("/settings/llm", response_model=LLMSettingsResponse, dependencies=[Depends(require_settings_write_auth)])
 async def update_llm_settings(payload: UpdateLLMSettingsRequest):
     """Persist project-local LLM settings and update the running process."""
+    from src.config.paths import active_tenant_var
+    tenant = active_tenant_var.get()
+
+    if payload.use_default:
+        if tenant != "default":
+            LLM_KEYS_TO_CLEAN = [
+                "LANGCHAIN_PROVIDER",
+                "LANGCHAIN_MODEL_NAME",
+                "LANGCHAIN_TEMPERATURE",
+                "TIMEOUT_SECONDS",
+                "MAX_RETRIES",
+                "LANGCHAIN_REASONING_EFFORT",
+                "OPENAI_API_KEY",
+                "OPENAI_BASE_URL",
+                "OPENROUTER_API_KEY",
+                "OPENROUTER_BASE_URL",
+                "GEMINI_API_KEY",
+                "GEMINI_BASE_URL",
+                "ANTHROPIC_API_KEY",
+                "ANTHROPIC_BASE_URL",
+                "DEEPSEEK_API_KEY",
+                "DEEPSEEK_BASE_URL",
+                "QWEN_API_KEY",
+                "QWEN_BASE_URL",
+                "OLLAMA_BASE_URL",
+            ]
+            _delete_env_values(ENV_PATH, LLM_KEYS_TO_CLEAN)
+            for key in LLM_KEYS_TO_CLEAN:
+                os.environ.pop(key, None)
+            return _build_llm_settings_response(_read_settings_env_values())
+        else:
+            raise HTTPException(status_code=400, detail="Admin cannot revert to global default")
+
+    if not payload.provider or not payload.model_name:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Provider and Model name are required")
+
     provider_name = payload.provider.strip().lower()
     provider = LLM_PROVIDER_BY_NAME.get(provider_name)
     if provider is None:
@@ -1778,23 +2292,38 @@ async def update_llm_settings(payload: UpdateLLMSettingsRequest):
     if reasoning_effort or "LANGCHAIN_REASONING_EFFORT" in current_values:
         updates["LANGCHAIN_REASONING_EFFORT"] = reasoning_effort
 
+    from src.config.paths import active_tenant_var
+    tenant = active_tenant_var.get()
+    tenant_vals = {}
+    if tenant != "default":
+        tenant_env = Path.home() / ".vibe-trading" / "tenants" / tenant / ".env"
+        if tenant_env.exists():
+            tenant_vals = _read_env_values(tenant_env)
+    else:
+        tenant_vals = current_values
+
     if provider.api_key_env:
         if payload.clear_api_key:
             updates[provider.api_key_env] = ""
         elif payload.api_key is not None and payload.api_key.strip():
             api_key = payload.api_key.strip()
-            updates[provider.api_key_env] = api_key if _is_configured_secret(api_key, LLM_API_KEY_PLACEHOLDERS) else ""
-        elif provider.api_key_env in current_values and _is_configured_secret(
-            current_values[provider.api_key_env],
+            if api_key == "********":
+                if provider.api_key_env in tenant_vals:
+                    updates[provider.api_key_env] = tenant_vals[provider.api_key_env]
+            else:
+                updates[provider.api_key_env] = api_key if _is_configured_secret(api_key, LLM_API_KEY_PLACEHOLDERS) else ""
+        elif provider.api_key_env in tenant_vals and _is_configured_secret(
+            tenant_vals[provider.api_key_env],
             LLM_API_KEY_PLACEHOLDERS,
         ):
-            updates[provider.api_key_env] = current_values[provider.api_key_env]
+            updates[provider.api_key_env] = tenant_vals[provider.api_key_env]
     elif payload.clear_api_key:
         os.environ.pop("OPENAI_API_KEY", None)
 
     _write_env_values(ENV_PATH, updates)
     _sync_runtime_env(provider, updates)
     return _build_llm_settings_response(_read_env_values(ENV_PATH))
+
 
 
 @app.get(
@@ -1814,29 +2343,68 @@ async def get_data_source_settings():
 )
 async def update_data_source_settings(payload: UpdateDataSourceSettingsRequest):
     """Persist project-local data source credentials and update the running process."""
+    from src.config.paths import active_tenant_var
+    tenant = active_tenant_var.get()
+
+    if payload.use_default:
+        if tenant != "default":
+            DATA_SOURCE_KEYS = ["TUSHARE_TOKEN", "VIBE_TRADING_IWENCAI_KEY", "FRED_API_KEY"]
+            _delete_env_values(ENV_PATH, DATA_SOURCE_KEYS)
+            for key in DATA_SOURCE_KEYS:
+                os.environ.pop(key, None)
+            return _build_data_source_settings_response(_read_settings_env_values())
+        else:
+            raise HTTPException(status_code=400, detail="Admin cannot revert to global default")
+
     current_values = _read_settings_env_values()
     updates: Dict[str, str] = {}
+    from src.config.paths import active_tenant_var
+    tenant = active_tenant_var.get()
+    tenant_vals = {}
+    if tenant != "default":
+        tenant_env = Path.home() / ".vibe-trading" / "tenants" / tenant / ".env"
+        if tenant_env.exists():
+            tenant_vals = _read_env_values(tenant_env)
+    else:
+        tenant_vals = current_values
+
 
     if payload.clear_tushare_token:
         updates["TUSHARE_TOKEN"] = ""
     elif payload.tushare_token is not None and payload.tushare_token.strip():
-        updates["TUSHARE_TOKEN"] = payload.tushare_token.strip()
-    elif "TUSHARE_TOKEN" in current_values:
-        updates["TUSHARE_TOKEN"] = current_values["TUSHARE_TOKEN"]
+        val = payload.tushare_token.strip()
+        if val == "********":
+            if "TUSHARE_TOKEN" in tenant_vals:
+                updates["TUSHARE_TOKEN"] = tenant_vals["TUSHARE_TOKEN"]
+        else:
+            updates["TUSHARE_TOKEN"] = val
+    elif "TUSHARE_TOKEN" in tenant_vals:
+        updates["TUSHARE_TOKEN"] = tenant_vals["TUSHARE_TOKEN"]
 
     if payload.clear_iwencai_key:
         updates["VIBE_TRADING_IWENCAI_KEY"] = ""
     elif payload.iwencai_key is not None and payload.iwencai_key.strip():
-        updates["VIBE_TRADING_IWENCAI_KEY"] = payload.iwencai_key.strip()
-    elif "VIBE_TRADING_IWENCAI_KEY" in current_values:
-        updates["VIBE_TRADING_IWENCAI_KEY"] = current_values["VIBE_TRADING_IWENCAI_KEY"]
+        val = payload.iwencai_key.strip()
+        if val == "********":
+            if "VIBE_TRADING_IWENCAI_KEY" in tenant_vals:
+                updates["VIBE_TRADING_IWENCAI_KEY"] = tenant_vals["VIBE_TRADING_IWENCAI_KEY"]
+        else:
+            updates["VIBE_TRADING_IWENCAI_KEY"] = val
+    elif "VIBE_TRADING_IWENCAI_KEY" in tenant_vals:
+        updates["VIBE_TRADING_IWENCAI_KEY"] = tenant_vals["VIBE_TRADING_IWENCAI_KEY"]
 
     if payload.clear_fred_api_key:
         updates["FRED_API_KEY"] = ""
     elif payload.fred_api_key is not None and payload.fred_api_key.strip():
-        updates["FRED_API_KEY"] = payload.fred_api_key.strip()
-    elif "FRED_API_KEY" in current_values:
-        updates["FRED_API_KEY"] = current_values["FRED_API_KEY"]
+        val = payload.fred_api_key.strip()
+        if val == "********":
+            if "FRED_API_KEY" in tenant_vals:
+                updates["FRED_API_KEY"] = tenant_vals["FRED_API_KEY"]
+        else:
+            updates["FRED_API_KEY"] = val
+    elif "FRED_API_KEY" in tenant_vals:
+        updates["FRED_API_KEY"] = tenant_vals["FRED_API_KEY"]
+
 
     if updates:
         _write_env_values(ENV_PATH, updates)

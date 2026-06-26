@@ -87,7 +87,28 @@ def _load_skill_dir(dir_path: Path) -> Optional[Skill]:
     )
 
 
-USER_SKILLS_DIR = Path.home() / ".vibe-trading" / "skills" / "user"
+class TenantUserSkillsDir:
+    """Dynamic path proxy that resolves to the tenant's user skills directory."""
+
+    @property
+    def _path(self) -> Path:
+        from src.config.paths import get_runtime_root
+        return get_runtime_root() / "skills" / "user"
+
+    def __truediv__(self, other: str) -> Path:
+        return self._path / other
+
+    def __str__(self) -> str:
+        return str(self._path)
+
+    def __repr__(self) -> str:
+        return repr(self._path)
+
+    def __getattr__(self, name: str) -> Any:
+        return getattr(self._path, name)
+
+
+USER_SKILLS_DIR = TenantUserSkillsDir()  # type: ignore
 
 
 class SkillsLoader:
@@ -106,7 +127,8 @@ class SkillsLoader:
             user_skills_dir: User-created skills directory; defaults to ~/.vibe-trading/skills/user/.
         """
         self.skills_dir = skills_dir or Path(__file__).resolve().parents[1] / "skills"
-        self._user_skills_dir = user_skills_dir or USER_SKILLS_DIR
+        from src.config.paths import get_runtime_root
+        self._user_skills_dir = user_skills_dir or (get_runtime_root() / "skills" / "user")
         self.skills: List[Skill] = []
         self._load()
 

@@ -127,21 +127,21 @@ def test_configured_api_key_accepts_bearer_for_sensitive_reads(
     assert response.status_code == 200
 
 
-def test_loopback_bypasses_auth_even_when_api_key_configured(
+def test_loopback_requires_auth_when_api_key_configured(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """Loopback clients remain trusted for non-settings reads."""
+    """Loopback clients must be challenged with 401 when API keys are configured."""
     monkeypatch.setenv("API_AUTH_KEY", "secret")
     monkeypatch.setattr(api_server, "_API_KEY", "secret")
 
     local = _local_client()
     remote = _remote_client()
 
-    # Loopback: no bearer needed → should succeed
+    # Loopback without bearer: must be rejected with 401
     local_response = local.get("/runs")
-    assert local_response.status_code == 200
+    assert local_response.status_code == 401
 
-    # Remote without bearer: still rejected
+    # Remote without bearer: rejected with 401
     remote_response = remote.get("/runs")
     assert remote_response.status_code == 401
 
@@ -643,3 +643,381 @@ def test_swarm_run_endpoints_reject_traversal_run_id() -> None:
         response = getattr(client, method)(path)
         assert response.status_code == 400, f"{method.upper()} {path} should be rejected"
         assert response.json()["detail"] == "invalid run_id"
+
+
+def test_admin_tenant_keys_crud_and_config_inheritance(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path,
+) -> None:
+    from pathlib import Path
+    
+    # 1. Mock home to tmp_path so it doesn't affect user files
+    monkeypatch.setattr(Path, "home", lambda: tmp_path)
+    
+    # Mock AGENT_DIR and global admin .env
+    admin_env = tmp_path / ".env"
+    admin_env.write_text(
+        "LANGCHAIN_PROVIDER=openai\n"
+        "OPENAI_API_KEY=sk-admin-key-12345\n"
+        "TUSHARE_TOKEN=tushare-global-token\n",
+        encoding="utf-8"
+    )
+    monkeypatch.setattr(api_server, "AGENT_DIR", tmp_path)
+
+    # 2. Configure admin credentials
+    monkeypatch.setenv("API_AUTH_KEY", "admin_secret")
+    monkeypatch.setattr(api_server, "_API_KEY", "admin_secret")
+    
+    admin_client = _remote_client()
+    admin_headers = {"Authorization": "Bearer admin_secret"}
+    
+    # Admin lists keys - should be empty initially
+    resp = admin_client.get("/admin/tenants/keys", headers=admin_headers)
+    assert resp.status_code == 200
+    assert resp.json() == []
+    
+    # Admin creates a tenant key
+    resp = admin_client.post("/admin/tenants/keys", headers=admin_headers, json={"name": "test-tenant-1"})
+    assert resp.status_code == 200
+    data = resp.json()
+    assert "key" in data
+    assert data["name"] == "test-tenant-1"
+    tenant_key = data["key"]
+    tenant_id = data["tenant_id"]
+    assert data["is_active"] is True
+    
+    # Check that tenant directory exists
+    tenant_dir = tmp_path / ".vibe-trading" / "tenants" / tenant_id
+    assert tenant_dir.exists()
+    
+    # List keys should now show the new key
+    resp = admin_client.get("/admin/tenants/keys", headers=admin_headers)
+    assert resp.status_code == 200
+    assert len(resp.json()) == 1
+    assert resp.json()[0]["tenant_id"] == tenant_id
+
+    # 3. Test tenant client settings access
+    tenant_client = _remote_client()
+    tenant_headers = {"Authorization": f"Bearer {tenant_key}"}
+    
+    # Tenant cannot access admin keys endpoint
+    resp = tenant_client.get("/admin/tenants/keys", headers=tenant_headers)
+    assert resp.status_code == 403
+    
+    # Tenant gets profile
+    resp = tenant_client.get("/settings/profile", headers=tenant_headers)
+    assert resp.status_code == 200
+    profile = resp.json()
+    assert profile["role"] == "tenant"
+    assert profile["tenant_id"] == tenant_id
+    
+    # Tenant gets LLM settings - should inherit and mask OPENAI_API_KEY
+    resp = tenant_client.get("/settings/llm", headers=tenant_headers)
+    assert resp.status_code == 200
+    llm_settings = resp.json()
+    assert llm_settings["api_key_configured"] is True
+    assert llm_settings["api_key_hint"] == "********"
+    
+    # Tenant gets data source settings - should inherit and mask TUSHARE_TOKEN
+    resp = tenant_client.get("/settings/data-sources", headers=tenant_headers)
+    assert resp.status_code == 200
+    ds_settings = resp.json()
+    assert ds_settings["tushare_token_configured"] is True
+    assert ds_settings["tushare_token_hint"] == "********"
+    
+    # 4. Test writing settings as tenant
+    # Tenant updates temperature and submits the masked API key "********"
+    resp = tenant_client.put(
+        "/settings/llm",
+        headers=tenant_headers,
+        json={
+            "provider": "openai",
+            "model_name": "gpt-4o-mini",
+            "temperature": 0.5,
+            "timeout_seconds": 120,
+            "max_retries": 2,
+            "api_key": "********",
+        }
+    )
+    assert resp.status_code == 200
+    # Ensure it didn't save the literal "********" to their env
+    tenant_env_file = tenant_dir / ".env"
+    assert tenant_env_file.exists()
+    tenant_env_content = tenant_env_file.read_text(encoding="utf-8")
+    assert "OPENAI_API_KEY" not in tenant_env_content
+    # The temperature should be saved in the tenant env
+    assert "LANGCHAIN_TEMPERATURE=0.5" in tenant_env_content
+    
+    # Ensure it didn't write to the global admin env either
+    admin_env_content = admin_env.read_text(encoding="utf-8")
+    assert "LANGCHAIN_TEMPERATURE" not in admin_env_content
+    
+    # 5. Test tenant writing their own custom key
+    resp = tenant_client.put(
+        "/settings/llm",
+        headers=tenant_headers,
+        json={
+            "provider": "openai",
+            "model_name": "gpt-4o-mini",
+            "temperature": 0.5,
+            "timeout_seconds": 120,
+            "max_retries": 2,
+            "api_key": "sk-custom-tenant-key",
+        }
+    )
+    assert resp.status_code == 200
+    # The tenant env should contain their custom key
+    tenant_env_content = tenant_env_file.read_text(encoding="utf-8")
+    assert "OPENAI_API_KEY=sk-custom-tenant-key" in tenant_env_content
+    
+    # Ensure admin env remains untouched
+    admin_env_content = admin_env.read_text(encoding="utf-8")
+    assert "sk-custom-tenant-key" not in admin_env_content
+    
+    # Read LLM settings again as tenant - it should not mask (api_key_hint should be None)
+    # because it is their own key now!
+    resp = tenant_client.get("/settings/llm", headers=tenant_headers)
+    assert resp.status_code == 200
+    llm_settings = resp.json()
+    assert llm_settings["api_key_configured"] is True
+    assert llm_settings["api_key_hint"] is None
+    
+    # 6. Test toggling tenant key activation status by Admin
+    resp = admin_client.put(
+        f"/admin/tenants/keys/{tenant_id}",
+        headers=admin_headers,
+        json={"is_active": False}
+    )
+    assert resp.status_code == 200
+    assert resp.json()["is_active"] is False
+    
+    # Tenant tries to access settings profile - should be rejected with 401 Unauthorized
+    resp = tenant_client.get("/settings/profile", headers=tenant_headers)
+    assert resp.status_code == 401
+
+
+def test_tenant_key_lifecycle_extended(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path,
+) -> None:
+    from pathlib import Path
+    
+    monkeypatch.setattr(Path, "home", lambda: tmp_path)
+    monkeypatch.setattr(api_server, "AGENT_DIR", tmp_path)
+    monkeypatch.setenv("API_AUTH_KEY", "admin_secret")
+    monkeypatch.setattr(api_server, "_API_KEY", "admin_secret")
+    
+    admin_client = _remote_client()
+    admin_headers = {"Authorization": "Bearer admin_secret"}
+    
+    # 1. Create a key with a name
+    resp = admin_client.post("/admin/tenants/keys", headers=admin_headers, json={"name": "test-tenant-extended"})
+    assert resp.status_code == 200
+    key_data = resp.json()
+    tenant_id = key_data["tenant_id"]
+    tenant_key = key_data["key"]
+    
+    tenant_client = _remote_client()
+    tenant_headers = {"Authorization": f"Bearer {tenant_key}"}
+    
+    # Verify it works initially
+    resp = tenant_client.get("/settings/profile", headers=tenant_headers)
+    assert resp.status_code == 200
+    
+    # 2. Deactivate the key
+    resp = admin_client.put(
+        f"/admin/tenants/keys/{tenant_id}",
+        headers=admin_headers,
+        json={"is_active": False}
+    )
+    assert resp.status_code == 200
+    assert resp.json()["is_active"] is False
+    
+    # Tenant tries to access - should be rejected with 401
+    resp = tenant_client.get("/settings/profile", headers=tenant_headers)
+    assert resp.status_code == 401
+    
+    # 3. Reactivate the key
+    resp = admin_client.put(
+        f"/admin/tenants/keys/{tenant_id}",
+        headers=admin_headers,
+        json={"is_active": True}
+    )
+    assert resp.status_code == 200
+    assert resp.json()["is_active"] is True
+    
+    # Tenant tries to access - should work now
+    resp = tenant_client.get("/settings/profile", headers=tenant_headers)
+    assert resp.status_code == 200
+    
+    # 4. Admin deletes the key
+    resp = admin_client.delete(f"/admin/tenants/keys/{tenant_id}", headers=admin_headers)
+    assert resp.status_code == 200
+    assert resp.json()["status"] == "success"
+    
+    # Tenant tries to access - should be rejected with 401
+    resp = tenant_client.get("/settings/profile", headers=tenant_headers)
+    assert resp.status_code == 401
+
+
+def test_tenant_register_validation_and_use_default_cleanup(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path,
+) -> None:
+    from pathlib import Path
+    
+    # 1. Setup mock directories
+    monkeypatch.setattr(Path, "home", lambda: tmp_path)
+    monkeypatch.setattr(api_server, "AGENT_DIR", tmp_path)
+    
+    # Configure admin credentials
+    monkeypatch.setenv("API_AUTH_KEY", "admin_secret")
+    monkeypatch.setattr(api_server, "_API_KEY", "admin_secret")
+    
+    client = _local_client() # Local client
+    
+    # Loopback request to /settings/profile without bearer when API_AUTH_KEY is set should return 401
+    resp = client.get("/settings/profile")
+    assert resp.status_code == 401
+    
+    # 2. Test registration endpoint (/settings/register)
+    # Register with valid name
+    resp = client.post("/settings/register", json={"name": "研发中心策略二组"})
+    assert resp.status_code == 200
+    res_data = resp.json()
+    assert "key" in res_data
+    tenant_id = res_data["tenant_id"]
+    tenant_key = res_data["key"]
+    assert res_data["name"] == "研发中心策略二组"
+    
+    # Register with invalid name (special chars)
+    resp = client.post("/settings/register", json={"name": "invalid#name"})
+    assert resp.status_code == 400
+    
+    # Register with duplicate name (should check case-insensitive & trailing spaces)
+    resp = client.post("/settings/register", json={"name": " 研发中心策略二组 "})
+    assert resp.status_code == 400
+    
+    # Register with too short name
+    resp = client.post("/settings/register", json={"name": "a"})
+    assert resp.status_code == 400
+    
+    # 3. Test LLM and Data Source use_default reversion/cleanup
+    tenant_headers = {"Authorization": f"Bearer {tenant_key}"}
+    
+    # Set custom keys in tenant env
+    tenant_env_file = tmp_path / ".vibe-trading" / "tenants" / tenant_id / ".env"
+    tenant_env_file.write_text(
+        "OPENAI_API_KEY=sk-tenant-custom\n"
+        "LANGCHAIN_PROVIDER=openai\n"
+        "TUSHARE_TOKEN=tushare-tenant-custom\n"
+        "VIBE_TRADING_IWENCAI_KEY=iwencai-tenant-custom\n",
+        encoding="utf-8"
+    )
+    
+    # Revert LLM to default
+    resp = client.put(
+        "/settings/llm",
+        headers=tenant_headers,
+        json={
+            "provider": "openai",
+            "model_name": "gpt-4o-mini",
+            "temperature": 0.5,
+            "timeout_seconds": 120,
+            "max_retries": 2,
+            "use_default": True
+        }
+    )
+    assert resp.status_code == 200
+    
+    # Verify custom LLM keys are deleted
+    env_content = tenant_env_file.read_text(encoding="utf-8")
+    assert "OPENAI_API_KEY" not in env_content
+    assert "LANGCHAIN_PROVIDER" not in env_content
+    # Data source keys should still exist since they were not reverted
+    assert "TUSHARE_TOKEN=tushare-tenant-custom" in env_content
+    
+    # Revert Data Source to default
+    resp = client.put(
+        "/settings/data-sources",
+        headers=tenant_headers,
+        json={
+            "use_default": True
+        }
+    )
+    assert resp.status_code == 200
+    
+    # Verify custom data source keys are deleted
+    env_content = tenant_env_file.read_text(encoding="utf-8")
+    assert "TUSHARE_TOKEN" not in env_content
+    assert "VIBE_TRADING_IWENCAI_KEY" not in env_content
+
+
+def test_private_lan_client_admin_bypass(monkeypatch: pytest.MonkeyPatch, tmp_path) -> None:
+    """A LAN/private client (e.g. 192.168.1.100) gets admin privileges on settings pages."""
+    from pathlib import Path
+    monkeypatch.setattr(Path, "home", lambda: tmp_path)
+    monkeypatch.setattr(api_server, "AGENT_DIR", tmp_path)
+    monkeypatch.setenv("API_AUTH_KEY", "admin_secret")
+    monkeypatch.setattr(api_server, "_API_KEY", "admin_secret")
+
+    lan_client = TestClient(api_server.app, client=("192.168.1.100", 50000))
+    lan_headers = {"Authorization": "Bearer admin_secret"}
+
+    # 1. Admin operations like listing tenant keys should succeed
+    resp = lan_client.get("/admin/tenants/keys", headers=lan_headers)
+    assert resp.status_code == 200
+
+    # 2. profile shows is_local=True for LAN IP
+    resp = lan_client.get("/settings/profile", headers=lan_headers)
+    assert resp.status_code == 200
+    assert resp.json()["is_local"] is True
+
+
+def test_remote_host_header_denied_even_if_loopback(monkeypatch: pytest.MonkeyPatch, tmp_path) -> None:
+    """If the client IP is loopback but the Host header is a public IP (e.g. 8.129.0.26), it is treated as remote."""
+    from pathlib import Path
+    monkeypatch.setattr(Path, "home", lambda: tmp_path)
+    monkeypatch.setattr(api_server, "AGENT_DIR", tmp_path)
+    monkeypatch.setenv("API_AUTH_KEY", "admin_secret")
+    monkeypatch.setattr(api_server, "_API_KEY", "admin_secret")
+    monkeypatch.setattr(api_server, "_EXTRA_LOOPBACK_HOSTS", {"8.129.0.26"})
+
+    # Client IP is loopback, but Host header is public IP
+    client = TestClient(api_server.app, client=("127.0.0.1", 50000))
+    headers = {
+        "Authorization": "Bearer admin_secret",
+        "Host": "8.129.0.26:9888"
+    }
+
+    # Profile should show is_local = False
+    resp = client.get("/settings/profile", headers=headers)
+    assert resp.status_code == 200
+    assert resp.json()["is_local"] is False
+
+
+def test_tenant_session_disables_shell_tools(monkeypatch: pytest.MonkeyPatch, tmp_path) -> None:
+    """Even if shell tools are globally enabled, they must be disabled for regular tenant sessions."""
+    from pathlib import Path
+    monkeypatch.setattr(Path, "home", lambda: tmp_path)
+    monkeypatch.setattr(api_server, "AGENT_DIR", tmp_path)
+    monkeypatch.setenv("API_AUTH_KEY", "admin_secret")
+    monkeypatch.setattr(api_server, "_API_KEY", "admin_secret")
+    monkeypatch.setenv("VIBE_TRADING_ENABLE_SHELL_TOOLS", "1")
+
+    # Mock a request to _shell_tools_enabled_for_request
+    request = SimpleNamespace(client=SimpleNamespace(host="127.0.0.1"), headers={})
+
+    # 1. Default admin context -> shell tools allowed
+    from src.config.paths import active_tenant_var
+    active_tenant_var.set("default")
+    assert api_server._shell_tools_enabled_for_request(request) is True
+
+    # 2. Regular tenant context -> shell tools strictly disabled
+    active_tenant_var.set("tenant_12345")
+    assert api_server._shell_tools_enabled_for_request(request) is False
+
+
+
+
+

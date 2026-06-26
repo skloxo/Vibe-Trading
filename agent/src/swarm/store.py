@@ -69,7 +69,11 @@ def swarm_runs_root() -> Path:
     run_dir outside the allow-list (P03-A). Deriving it here once keeps
     the store location and the allow-list from drifting again.
     """
-    return Path(__file__).resolve().parents[2] / ".swarm" / "runs"
+    from src.config.paths import get_runtime_root, active_tenant_var
+    tenant = active_tenant_var.get()
+    if tenant == "default":
+        return Path(__file__).resolve().parents[2] / ".swarm" / "runs"
+    return get_runtime_root() / "swarm" / "runs"
 
 
 _TRANSIENT_WINERRORS = (5, 32)  # ERROR_ACCESS_DENIED, ERROR_SHARING_VIOLATION

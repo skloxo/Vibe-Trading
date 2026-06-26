@@ -25,7 +25,7 @@ async function errorFromResponse(res: Response): Promise<ApiError> {
     const body = await res.json();
     detail = body.detail || body.message || detail;
   } catch { /* ignore */ }
-  if (res.status === 401 || res.status === 403) {
+  if ((res.status === 401 || res.status === 403) && detail === `HTTP ${res.status}`) {
     detail = AUTH_REQUIRED_MESSAGE;
   }
   return new ApiError(detail, res.status);
@@ -131,19 +131,21 @@ export const api = {
     request<{ status: string }>(`/swarm/runs/${id}/cancel`, { method: "POST" }),
   retrySwarmRun: (id: string) =>
     request<{ id: string; status: string; preset_name: string }>(`/swarm/runs/${id}/retry`, { method: "POST" }),
-  getLLMSettings: () => request<LLMSettings>("/settings/llm"),
-  updateLLMSettings: (settings: UpdateLLMSettingsRequest) =>
+  getLLMSettings: (options?: RequestInit) => request<LLMSettings>("/settings/llm", options),
+  updateLLMSettings: (settings: UpdateLLMSettingsRequest, options?: RequestInit) =>
     request<LLMSettings>("/settings/llm", {
       method: "PUT",
       body: JSON.stringify(settings),
+      ...options,
     }),
-  getDataSourceSettings: () => request<DataSourceSettings>("/settings/data-sources"),
-  updateDataSourceSettings: (settings: UpdateDataSourceSettingsRequest) =>
+  getDataSourceSettings: (options?: RequestInit) => request<DataSourceSettings>("/settings/data-sources", options),
+  updateDataSourceSettings: (settings: UpdateDataSourceSettingsRequest, options?: RequestInit) =>
     request<DataSourceSettings>("/settings/data-sources", {
       method: "PUT",
       body: JSON.stringify(settings),
+      ...options,
     }),
-  getFeatureFlags: () => request<FeatureFlagsResponse>("/settings/feature-flags"),
+  getFeatureFlags: (options?: RequestInit) => request<FeatureFlagsResponse>("/settings/feature-flags", options),
   getFeishuChannels: () => request<FeishuChannel[]>("/settings/platforms/feishu/channels"),
   createFeishuChannel: (channel: CreateFeishuChannelRequest) =>
     request<FeishuChannel>("/settings/platforms/feishu/channels", {
@@ -218,7 +220,29 @@ export const api = {
       method: "POST",
       body: JSON.stringify({ broker }),
     }),
+  getSettingsProfile: () => request<UserProfile>("/settings/profile"),
+  getTenantKeys: () => request<TenantKey[]>("/admin/tenants/keys"),
+  createTenantKey: (body: { name: string }) =>
+    request<TenantKey>("/admin/tenants/keys", {
+      method: "POST",
+      body: JSON.stringify(body),
+    }),
+  updateTenantKey: (tenant_id: string, body: { name?: string; is_active?: boolean }) =>
+    request<TenantKey>(`/admin/tenants/keys/${tenant_id}`, {
+      method: "PUT",
+      body: JSON.stringify(body),
+    }),
+  deleteTenantKey: (tenant_id: string) =>
+    request<{ status: string }>(`/admin/tenants/keys/${tenant_id}`, {
+      method: "DELETE",
+    }),
+  registerTenant: (body: { name: string }) =>
+    request<{ key: string; tenant_id: string; name: string }>("/settings/register", {
+      method: "POST",
+      body: JSON.stringify(body),
+    }),
 };
+
 
 // --- Swarm types ---
 
@@ -266,6 +290,7 @@ export interface LLMSettings {
   sse_timeout_seconds: number;
   env_path: string;
   providers: LLMProviderOption[];
+  is_custom?: boolean;
 }
 
 export interface UpdateLLMSettingsRequest {
@@ -278,6 +303,7 @@ export interface UpdateLLMSettingsRequest {
   timeout_seconds: number;
   max_retries: number;
   reasoning_effort?: string;
+  use_default?: boolean;
 }
 
 export interface FeishuChannel {
@@ -319,6 +345,7 @@ export interface DataSourceSettings {
   baostock_installed: boolean;
   baostock_message: string;
   env_path: string;
+  is_custom?: boolean;
 }
 
 export interface UpdateDataSourceSettingsRequest {
@@ -328,6 +355,7 @@ export interface UpdateDataSourceSettingsRequest {
   clear_iwencai_key?: boolean;
   fred_api_key?: string;
   clear_fred_api_key?: boolean;
+  use_default?: boolean;
 }
 
 export interface FeatureFlagsResponse {
@@ -978,3 +1006,19 @@ export interface MessageItem {
   linked_attempt_id?: string;
   metadata?: Record<string, unknown>;
 }
+
+export interface UserProfile {
+  role: string;
+  tenant_id: string;
+  name?: string;
+  is_local: boolean;
+}
+
+export interface TenantKey {
+  key: string;
+  tenant_id: string;
+  name: string;
+  created_at: string;
+  is_active: boolean;
+}
+

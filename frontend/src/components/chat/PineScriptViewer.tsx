@@ -1,5 +1,6 @@
 import { useTranslation } from 'react-i18next';
 import { memo, useState, useCallback } from "react";
+import { createPortal } from "react-dom";
 import { X, Copy, Check, ExternalLink } from "lucide-react";
 
 interface Props {
@@ -29,7 +30,7 @@ export const PineScriptViewer = memo(function PineScriptViewer({ code, onClose }
     }
   }, [code]);
 
-  return (
+  return createPortal(
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm" onClick={onClose}>
       <div
         className="relative w-full max-w-3xl max-h-[80vh] mx-4 rounded-xl border bg-background shadow-2xl flex flex-col"
@@ -81,6 +82,7 @@ export const PineScriptViewer = memo(function PineScriptViewer({ code, onClose }
           </p>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 });

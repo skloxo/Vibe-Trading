@@ -265,8 +265,9 @@ def _validate_backtest_dates(start_date: str, end_date: str) -> None:
 
 def _run_dir_for_hypothesis(hypothesis_id: str) -> Path:
     """Return a path-contained run directory for any persisted hypothesis id."""
+    from src.config.paths import get_runtime_root
     suffix = hashlib.sha256(hypothesis_id.encode("utf-8")).hexdigest()[:12]
-    return Path.home() / ".vibe-trading" / "runs" / f"autopilot_{suffix}"
+    return get_runtime_root() / "runs" / f"autopilot_{suffix}"
 
 
 class GenerateBacktestConfigTool(BaseTool):

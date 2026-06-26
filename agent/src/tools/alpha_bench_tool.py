@@ -107,7 +107,8 @@ def _load_universe_panel(
         )
     start, end = _parse_period(period)
 
-    cache_dir = Path.home() / ".vibe-trading" / "cache"
+    from src.config.paths import get_runtime_root
+    cache_dir = get_runtime_root() / "cache"
     cache_path = cache_dir / f"{universe}_{start}_{end}.pkl"
     if use_cache and cache_path.is_file():
         cached = _read_pickle_cache(cache_path)
@@ -683,7 +684,8 @@ def _render_html_manual(ctx: dict[str, Any]) -> str:
 
 
 def _default_output_dir() -> Path:
-    return Path.home() / ".vibe-trading" / "reports"
+    from src.config.paths import get_runtime_root
+    return get_runtime_root() / "reports"
 
 
 def run_alpha_bench(**kwargs: Any) -> dict[str, Any]:

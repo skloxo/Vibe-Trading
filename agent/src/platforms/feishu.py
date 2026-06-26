@@ -78,7 +78,9 @@ class FeishuAdapter(BasePlatformAdapter):
         app_secret: str,
         allowed_users: str = "",
         allow_all_users: bool = False,
+        tenant_id: str = "default",
     ) -> None:
+        self.tenant_id = tenant_id
         self._channel_id: str = channel_id
         self._name: str = name
         self._app_id: str = app_id.strip()
@@ -99,7 +101,7 @@ class FeishuAdapter(BasePlatformAdapter):
 
     @property
     def platform_name(self) -> str:
-        return f"feishu_{self._channel_id}"
+        return f"feishu_{self.tenant_id}_{self._channel_id}"
 
     @property
     def display_name(self) -> str:

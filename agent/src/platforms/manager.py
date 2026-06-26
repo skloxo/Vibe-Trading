@@ -11,8 +11,9 @@ logger = logging.getLogger(__name__)
 class PlatformManager:
     """Manages active messaging platform adapters and orchestrates session flow."""
 
-    def __init__(self, session_service: Any) -> None:
+    def __init__(self, session_service: Any, tenant_id: str = "default") -> None:
         self.session_service = session_service
+        self.tenant_id = tenant_id
         self._adapters: Dict[str, BasePlatformAdapter] = {}
         self._running_trackers: Dict[str, asyncio.Task] = {}  # session_id -> tracking task
 
@@ -42,7 +43,16 @@ class PlatformManager:
 
         Runs the message handling flow in a non-blocking asyncio task.
         """
-        asyncio.create_task(self.handle_incoming_message(incoming))
+        async def _run_in_context():
+            from src.config.paths import active_tenant_var
+            adapter = self._adapters.get(incoming.platform)
+            tid = adapter.tenant_id if (adapter and hasattr(adapter, "tenant_id")) else self.tenant_id
+            token = active_tenant_var.set(tid)
+            try:
+                await self.handle_incoming_message(incoming)
+            finally:
+                active_tenant_var.reset(token)
+        asyncio.create_task(_run_in_context())
 
     async def handle_incoming_message(self, incoming: IncomingMessage) -> None:
         """Orchestrate the message mapping, Session generation, and progress tracking."""
