@@ -13,6 +13,12 @@ const Compare = lazy(() =>
 const Settings = lazy(() =>
   import("@/pages/Settings").then((m) => ({ default: m.Settings })),
 );
+const Xueqiu = lazy(() =>
+  import("@/pages/Xueqiu").then((m) => ({ default: m.Xueqiu })),
+);
+const XueqiuAuth = lazy(() =>
+  import("@/pages/XueqiuAuth").then((m) => ({ default: m.XueqiuAuth })),
+);
 const Runtime = lazy(() =>
   import("@/pages/Runtime").then((m) => ({ default: m.Runtime })),
 );
@@ -51,6 +57,7 @@ export const router = createBrowserRouter([
       { path: "/runtime", element: wrap(Runtime) },
       { path: "/reports", element: wrap(Reports) },
       { path: "/settings", element: wrap(Settings) },
+      { path: "/xueqiu", element: wrap(Xueqiu) },
       { path: "/runs/:runId", element: wrap(RunDetail) },
       { path: "/compare", element: wrap(Compare) },
       { path: "/correlation", element: wrap(Correlation) },
@@ -59,5 +66,9 @@ export const router = createBrowserRouter([
       { path: "/alpha-zoo/compare", element: wrap(AlphaZoo) },
       { path: "/alpha-zoo/:alphaId", element: wrap(AlphaZoo) },
     ],
+  },
+  {
+    path: "/xueqiu/auth",
+    element: wrap(XueqiuAuth),
   },
 ]);

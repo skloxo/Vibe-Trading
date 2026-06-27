@@ -161,6 +161,25 @@ export const api = {
     request<{ status: string }>(`/settings/platforms/feishu/channels/${id}`, {
       method: "DELETE",
     }),
+  getWechatChannels: () => request<WechatChannel[]>("/settings/platforms/wechat/channels"),
+  createWechatChannel: (channel: CreateWechatChannelRequest) =>
+    request<WechatChannel>("/settings/platforms/wechat/channels", {
+      method: "POST",
+      body: JSON.stringify(channel),
+    }),
+  updateWechatChannel: (id: string, channel: UpdateWechatChannelRequest) =>
+    request<WechatChannel>(`/settings/platforms/wechat/channels/${id}`, {
+      method: "PUT",
+      body: JSON.stringify(channel),
+    }),
+  deleteWechatChannel: (id: string) =>
+    request<{ status: string }>(`/settings/platforms/wechat/channels/${id}`, {
+      method: "DELETE",
+    }),
+  getWechatChannelQrcode: (id: string) =>
+    request<{ status: string; qrcode: string }>(`/settings/platforms/wechat/channels/${id}/qrcode`),
+  getWechatChannelStatus: (id: string) =>
+    request<{ status: string }>(`/settings/platforms/wechat/channels/${id}/status`),
 
   // Alpha Zoo API
   listAlphas: (params: AlphaListParams = {}) => {
@@ -240,6 +259,33 @@ export const api = {
     request<{ key: string; tenant_id: string; name: string }>("/settings/register", {
       method: "POST",
       body: JSON.stringify(body),
+    }),
+  getXueqiuSettings: (options?: RequestInit) => request<XueqiuSettings>("/settings/xueqiu", options),
+  updateXueqiuSettings: (settings: XueqiuSettings, options?: RequestInit) =>
+    request<XueqiuSettings>("/settings/xueqiu", {
+      method: "PUT",
+      body: JSON.stringify(settings),
+      ...options,
+    }),
+  testXueqiuWebhook: (webhook_url: string) =>
+    request<{ status: string }>("/settings/xueqiu/test", {
+      method: "POST",
+      body: JSON.stringify({ webhook_url }),
+    }),
+  getXueqiuLogs: (options?: RequestInit) => request<XueqiuRebalancingLog[]>("/settings/xueqiu/logs", options),
+  getXueqiuCombosDetails: (options?: RequestInit) => request<XueqiuComboDetail[]>("/settings/xueqiu/combos/details", options),
+  getXueqiuQRCode: (options?: RequestInit) => request<{ qrcode_id: string; auth_url: string }>("/settings/xueqiu/qrcode", options),
+  getXueqiuQRCodeStatus: (id: string, options?: RequestInit) => request<{ status: string; token?: string }>(`/settings/xueqiu/qrcode/status?id=${id}`, options),
+  confirmXueqiuQRCode: (qrcode_id: string, token: string, options?: RequestInit) =>
+    request<{ status: string }>("/settings/xueqiu/qrcode/confirm", {
+      method: "POST",
+      body: JSON.stringify({ qrcode_id, token }),
+      ...options,
+    }),
+  scanXueqiuQRCode: (id: string, options?: RequestInit) =>
+    request<{ status: string }>(`/settings/xueqiu/qrcode/scan?id=${id}`, {
+      method: "POST",
+      ...options,
     }),
 };
 
@@ -332,6 +378,52 @@ export interface UpdateFeishuChannelRequest {
   allowed_users?: string;
   allow_all_users: boolean;
   enabled: boolean;
+}
+
+export interface WechatChannel {
+  id: string;
+  name: string;
+  mode: string; // "wecom" | "picoclaw" | "ilink"
+  wecom_webhook: string;
+  wecom_corpid: string;
+  wecom_secret_configured: boolean;
+  wecom_agentid: string;
+  picoclaw_url: string;
+  enabled: boolean;
+  ilink_bot_token?: string;
+  ilink_base_url?: string;
+  ilink_bot_id?: string;
+  ilink_user_id?: string;
+}
+
+export interface CreateWechatChannelRequest {
+  name: string;
+  mode: string;
+  wecom_webhook?: string;
+  wecom_corpid?: string;
+  wecom_secret?: string;
+  wecom_agentid?: string;
+  picoclaw_url?: string;
+  enabled: boolean;
+  ilink_bot_token?: string;
+  ilink_base_url?: string;
+  ilink_bot_id?: string;
+  ilink_user_id?: string;
+}
+
+export interface UpdateWechatChannelRequest {
+  name: string;
+  mode: string;
+  wecom_webhook?: string;
+  wecom_corpid?: string;
+  wecom_secret?: string;
+  wecom_agentid?: string;
+  picoclaw_url?: string;
+  enabled: boolean;
+  ilink_bot_token?: string;
+  ilink_base_url?: string;
+  ilink_bot_id?: string;
+  ilink_user_id?: string;
 }
 
 export interface DataSourceSettings {
@@ -733,6 +825,9 @@ export interface AlphaSummary {
   theme: string[];
   universe: string[];
   nickname?: string;
+  nickname_zh?: string;
+  description_zh?: string;
+  usage_zh?: string;
   decay_horizon?: number | null;
   min_warmup_bars?: number | null;
   requires_sector?: boolean;
@@ -1021,4 +1116,45 @@ export interface TenantKey {
   created_at: string;
   is_active: boolean;
 }
+
+export interface XueqiuSettings {
+  enabled: boolean;
+  feishu_webhook: string;
+  combos: Record<string, string>;
+  xq_tokens: string[];
+  watch_uids: Record<string, string>;
+}
+
+export interface XueqiuRebalancingLog {
+  combo_name: string;
+  combo_id: string;
+  updated_at: number;
+  trade_time: string;
+  operation: string;
+  stock_symbol: string;
+  stock_name: string;
+  price: string | number;
+  current_weight: number;
+  prev_weight: number;
+  position_change: number;
+}
+
+export interface XueqiuComboHolding {
+  stock_name: string;
+  stock_symbol: string;
+  weight: number;
+}
+
+export interface XueqiuComboDetail {
+  name: string;
+  symbol: string;
+  net_value?: number;
+  total_gain?: number;
+  daily_gain?: number;
+  monthly_gain?: number;
+  holdings?: XueqiuComboHolding[];
+  error?: string;
+}
+
+
 
