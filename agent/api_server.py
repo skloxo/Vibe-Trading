@@ -909,13 +909,9 @@ _platform_manager = None
 async def _run_startup_preflight() -> None:
     """Run preflight checks on server startup."""
     from src.preflight import run_preflight
-    from src.core.public_cache import global_public_cache
 
     run_preflight(console)
     _start_scheduled_research_executor()
-
-    # Start the index index public cache thread
-    global_public_cache.start()
 
     # Initialize Platform Manager for multi-channel messaging (e.g. Feishu Bot)
     await _reload_platform_manager()
@@ -924,12 +920,7 @@ async def _run_startup_preflight() -> None:
 @app.on_event("shutdown")
 async def _stop_scheduled_research_on_shutdown() -> None:
     """Stop the scheduled research executor on server shutdown."""
-    from src.core.public_cache import global_public_cache
-    
     await _stop_scheduled_research_executor()
-
-    # Stop the index public cache thread
-    global_public_cache.stop()
 
     global _platform_manager
     if _platform_manager:
