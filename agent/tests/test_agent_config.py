@@ -400,7 +400,7 @@ def test_live_authorize_wildcard_robinhood_config_prints_safe_seed(
     from cli._legacy import EXIT_USAGE_ERROR, cmd_live_authorize
 
     monkeypatch.setattr(Path, "home", lambda: tmp_path)
-    config_path = tmp_path / ".vibe-trading" / "agent.json"
+    config_path = tmp_path / ".vibe-trading-cnx" / "agent.json"
     config_path.parent.mkdir(parents=True)
     config_path.write_text(
         json.dumps(
