@@ -718,13 +718,13 @@ vibe-trading-cnx serve --port 9888
 | `GET` | `/settings/data-sources` | 读取本地数据源 settings |
 | `PUT` | `/settings/data-sources` | 更新本地数据源 settings |
 
-交互式文档：`http://localhost:8899/docs`
+交互式文档：`http://localhost:9888/docs`
 
 ### Security defaults
 
-对于 localhost 开发，`vibe-trading serve` 会保持浏览器工作流简单。对任何非本地客户端，敏感 API endpoints 都要求 `API_AUTH_KEY`；JSON/upload 请求请使用 `Authorization: Bearer <key>`。浏览器 EventSource streams 会在你于 Settings 中输入同一个 key 后由 Web UI 处理。
+对于 localhost 开发，`vibe-trading-cnx serve` 会保持浏览器工作流简单。对任何非本地客户端，敏感 API endpoints 都要求 `API_AUTH_KEY`；JSON/upload 请求请使用 `Authorization: Bearer <key>`。浏览器 EventSource streams 会在你于 Settings 中输入同一个 key 后由 Web UI 处理。
 
-Shell-capable tools 可用于本地 CLI 与可信 localhost 工作流，但不会暴露给远程 API sessions，除非你显式设置 `VIBE_TRADING_ENABLE_SHELL_TOOLS=1`。文档和日志读取器默认限制在 upload/import roots 内；请将文件放在 `agent/uploads`、`agent/runs`、`./uploads`、`./data`、`~/.vibe-trading/uploads` 或 `~/.vibe-trading/imports` 下，或通过 `VIBE_TRADING_ALLOWED_FILE_ROOTS` 添加专用目录。
+Shell-capable tools 可用于本地 CLI 与可信 localhost 工作流，但不会暴露给远程 API sessions，除非你显式设置 `VIBE_TRADING_ENABLE_SHELL_TOOLS=1`。文档和日志读取器默认限制在 upload/import roots 内；请将文件放在 `agent/uploads`、`agent/runs`、`./uploads`、`./data`、`~/.vibe-trading-cnx/uploads` 或 `~/.vibe-trading-cnx/imports` 下，或通过 `VIBE_TRADING_ALLOWED_FILE_ROOTS` 添加专用目录。
 
 ### Web UI Settings
 
@@ -736,7 +736,7 @@ Settings 读取无副作用：`GET /settings/llm` 和 `GET /settings/data-source
 
 ## 🔌 MCP Plugin
 
-Vibe-Trading 为任何 MCP-compatible client 暴露 36 个 MCP tools。它作为 stdio subprocess 运行，无需 server setup。核心 research tools 对港股/美股/加密零 API key 可用；trading connector tools 使用当前选择的 connector profile；只有 `run_swarm` 需要 LLM key。
+Vibe-Trading-CNX 为任何 MCP-compatible client 暴露 36 个 MCP tools。它作为 stdio subprocess 运行，无需 server setup。核心 research tools 对 A股/港股 零 API key 可用；trading connector tools 使用当前选择的 connector profile；只有 `run_swarm` 需要 LLM key。
 
 <details>
 <summary><b>Claude Desktop</b></summary>
@@ -746,8 +746,8 @@ Vibe-Trading 为任何 MCP-compatible client 暴露 36 个 MCP tools。它作为
 ```json
 {
   "mcpServers": {
-    "vibe-trading": {
-      "command": "vibe-trading-mcp"
+    "vibe-trading-cnx": {
+      "command": "vibe-trading-cnx-mcp"
     }
   }
 }
@@ -762,8 +762,8 @@ Vibe-Trading 为任何 MCP-compatible client 暴露 36 个 MCP tools。它作为
 
 ```yaml
 skills:
-  - name: vibe-trading
-    command: vibe-trading-mcp
+  - name: vibe-trading-cnx
+    command: vibe-trading-cnx-mcp
 ```
 
 </details>
@@ -772,8 +772,8 @@ skills:
 <summary><b>Cursor / Windsurf / other MCP clients</b></summary>
 
 ```bash
-vibe-trading-mcp                  # stdio (default)
-vibe-trading-mcp --transport sse  # SSE for web clients
+vibe-trading-cnx-mcp                  # stdio (default)
+vibe-trading-cnx-mcp --transport sse  # SSE for web clients
 ```
 
 </details>
@@ -784,14 +784,14 @@ vibe-trading-mcp --transport sse  # SSE for web clients
 <summary><b>从 ClawHub 安装（一条命令）</b></summary>
 
 ```bash
-npx clawhub@latest install vibe-trading --force
+npx clawhub@latest install vibe-trading-cnx --force
 ```
 
 > 由于该 skill 引用了外部 API，会触发 VirusTotal 自动扫描，因此需要 `--force`。代码完全开源，可自行检查。
 
 这会将 skill + MCP config 下载到你的智能体 skills 目录。无需 clone。
 
-在 ClawHub 浏览：[clawhub.ai/skills/vibe-trading](https://clawhub.ai/skills/vibe-trading)
+在 ClawHub 浏览：[clawhub.ai/skills/vibe-trading-cnx](https://clawhub.ai/skills/vibe-trading-cnx)
 
 </details>
 
@@ -809,18 +809,18 @@ npx clawhub@latest install vibe-trading --force
       "command": "openspace-mcp",
       "toolTimeout": 600,
       "env": {
-        "OPENSPACE_HOST_SKILL_DIRS": "/path/to/vibe-trading/agent/src/skills",
+        "OPENSPACE_HOST_SKILL_DIRS": "/path/to/vibe-trading-cnx/agent/src/skills",
         "OPENSPACE_WORKSPACE": "/path/to/OpenSpace"
       }
     },
-    "vibe-trading": {
-      "command": "vibe-trading-mcp"
+    "vibe-trading-cnx": {
+      "command": "vibe-trading-cnx-mcp"
     }
   }
 }
 ```
 
-OpenSpace 会自动发现全部 77 个 skills，启用 auto-fix、auto-improve 和社区分享。在任意已连接 OpenSpace 的智能体中，可通过 `search_skills("finance backtest")` 搜索 Vibe-Trading skills。
+OpenSpace 会自动发现全部 77 个 skills，启用 auto-fix、auto-improve 和社区分享。在任意已连接 OpenSpace 的智能体中，可通过 `search_skills("finance backtest")` 搜索 Vibe-Trading-CNX skills。
 
 </details>
 
