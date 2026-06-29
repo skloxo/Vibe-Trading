@@ -253,6 +253,14 @@ export const api = {
       body: JSON.stringify({ broker }),
     }),
   getSettingsProfile: () => request<UserProfile>("/settings/profile"),
+  getMonitorStats: () => request<MonitorStats>("/admin/monitor/stats"),
+  getMonitorLogs: (params?: { limit?: number; level?: string; keyword?: string }) => {
+    const q = new URLSearchParams();
+    if (params?.limit) q.set("limit", params.limit.toString());
+    if (params?.level) q.set("level", params.level);
+    if (params?.keyword) q.set("keyword", params.keyword);
+    return request<LogEntry[]>(`/admin/monitor/logs?${q.toString()}`);
+  },
   getTenantKeys: () => request<TenantKey[]>("/admin/tenants/keys"),
   createTenantKey: (body: { name: string }) =>
     request<TenantKey>("/admin/tenants/keys", {
@@ -1152,6 +1160,25 @@ export interface XueqiuComboDetail {
   monthly_gain?: number;
   holdings?: XueqiuComboHolding[];
   error?: string;
+}
+
+export interface MonitorStats {
+  active_tenants: {
+    tenant_id: string;
+    name: string;
+    created_at: string;
+    is_active: boolean;
+  }[];
+  total_sessions: number;
+  total_runs: number;
+  memory_usage_mb: number;
+}
+
+export interface LogEntry {
+  timestamp: string;
+  level: string;
+  logger: string;
+  message: string;
 }
 
 

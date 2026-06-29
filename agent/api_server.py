@@ -14,6 +14,8 @@ import logging
 import os
 import re
 import signal
+import threading
+from collections import deque
 import time
 import csv
 import uuid
@@ -92,6 +94,49 @@ class _DynamicEnvPath(type(Path())):
 
 ENV_PATH = _DynamicEnvPath()
 ENV_EXAMPLE_PATH = AGENT_DIR / ".env.example"
+
+
+class MemoryLogHandler(logging.Handler):
+    """Thread-safe logging handler that retains the last N logs in memory."""
+    def __init__(self, maxlen: int = 1000):
+        super().__init__()
+        self._logs = deque(maxlen=maxlen)
+        self._lock = threading.Lock()
+
+    def emit(self, record: logging.LogRecord):
+        try:
+            msg = self.format(record)
+            log_entry = {
+                "timestamp": datetime.fromtimestamp(record.created).isoformat(),
+                "level": record.levelname,
+                "logger": record.name,
+                "message": msg,
+            }
+            with self._lock:
+                self._logs.append(log_entry)
+        except Exception:
+            self.handleError(record)
+
+    def get_logs(self, limit: int = 100, level: Optional[str] = None, keyword: Optional[str] = None):
+        with self._lock:
+            results = list(self._logs)
+        if level:
+            level_upper = level.upper()
+            results = [log for log in results if log["level"] == level_upper]
+        if keyword:
+            keyword_lower = keyword.lower()
+            results = [
+                log for log in results
+                if keyword_lower in log["message"].lower() or keyword_lower in log["logger"].lower()
+            ]
+        return results[-limit:]
+
+
+memory_log_handler = MemoryLogHandler()
+memory_log_handler.setFormatter(logging.Formatter("%(message)s"))
+memory_log_handler.setLevel(logging.INFO)
+logging.getLogger().addHandler(memory_log_handler)
+
 
 
 MAX_UPLOAD_SIZE = 50 * 1024 * 1024  # 50 MB
@@ -268,6 +313,22 @@ class UpdateTenantKeyRequest(BaseModel):
     """Request payload to update a tenant key."""
     name: Optional[str] = None
     is_active: Optional[bool] = None
+
+
+class MonitorStatsResponse(BaseModel):
+    """Service monitoring statistics."""
+    active_tenants: List[Dict[str, Any]]
+    total_sessions: int
+    total_runs: int
+    memory_usage_mb: float
+
+
+class LogEntry(BaseModel):
+    """Single log entry details."""
+    timestamp: str
+    level: str
+    logger: str
+    message: str
 
 
 class LLMSettingsResponse(BaseModel):
@@ -1661,16 +1722,20 @@ def _coerce_int(value: str, default: int) -> int:
         return default
 
 
-def _build_llm_settings_response(values: Optional[Dict[str, str]] = None) -> LLMSettingsResponse:
+def _build_llm_settings_response(values: Optional[Dict[str, str]] = None, is_public: bool = False) -> LLMSettingsResponse:
     """Build the public settings payload from dotenv values."""
-    env_values = values if values is not None else _read_settings_env_values()
+    from src.config.paths import active_tenant_var
+    tenant = active_tenant_var.get()
+
+    if is_public and tenant != "default":
+        env_values = values if values is not None else (_read_env_values(ENV_PATH) if ENV_PATH.exists() else {})
+    else:
+        env_values = values if values is not None else _read_settings_env_values()
+
     provider_name = env_values.get("LANGCHAIN_PROVIDER", "openai").strip().lower()
     provider = LLM_PROVIDER_BY_NAME.get(provider_name, LLM_PROVIDER_BY_NAME["openai"])
     api_key = env_values.get(provider.api_key_env or "", "") if provider.api_key_env else ""
     api_key_configured = _is_configured_secret(api_key, LLM_API_KEY_PLACEHOLDERS)
-    
-    from src.config.paths import active_tenant_var
-    tenant = active_tenant_var.get()
     
     api_key_hint = None
     if provider.auth_type == "oauth":
@@ -1682,7 +1747,7 @@ def _build_llm_settings_response(values: Optional[Dict[str, str]] = None) -> LLM
         api_key_configured = bool(token)
         api_key_hint = None
     else:
-        if tenant != "default":
+        if tenant != "default" and not is_public:
             # Mask inherited global key
             tenant_env = Path.home() / ".vibe-trading-cnx" / "tenants" / tenant / ".env"
             tenant_has_key = False
@@ -1739,9 +1804,16 @@ IWENCAI_KEY_PLACEHOLDERS: set[str] = {"", "your-iwencai-key"}
 FRED_API_KEY_PLACEHOLDERS: set[str] = {"", "your-fred-api-key"}
 
 
-def _build_data_source_settings_response(values: Optional[Dict[str, str]] = None) -> DataSourceSettingsResponse:
+def _build_data_source_settings_response(values: Optional[Dict[str, str]] = None, is_public: bool = False) -> DataSourceSettingsResponse:
     """Build the public data source settings payload."""
-    env_values = values if values is not None else _read_settings_env_values()
+    from src.config.paths import active_tenant_var
+    tenant = active_tenant_var.get()
+
+    if is_public and tenant != "default":
+        env_values = values if values is not None else (_read_env_values(ENV_PATH) if ENV_PATH.exists() else {})
+    else:
+        env_values = values if values is not None else _read_settings_env_values()
+
     token = env_values.get("TUSHARE_TOKEN", "")
     token_configured = _is_configured_secret(token, TUSHARE_TOKEN_PLACEHOLDERS)
     iwencai_key = env_values.get("VIBE_TRADING_IWENCAI_KEY", "")
@@ -1757,13 +1829,10 @@ def _build_data_source_settings_response(values: Optional[Dict[str, str]] = None
     else:
         baostock_message = "No BaoStock loader is registered in this project."
 
-    from src.config.paths import active_tenant_var
-    tenant = active_tenant_var.get()
-    
     tushare_token_hint = None
     iwencai_key_hint = None
     fred_api_key_hint = None
-    if tenant != "default":
+    if tenant != "default" and not is_public:
         tenant_env = Path.home() / ".vibe-trading-cnx" / "tenants" / tenant / ".env"
         tenant_vals = {}
         if tenant_env.exists():
@@ -2377,20 +2446,94 @@ async def delete_tenant_key(tenant_id: str):
 
 
 @app.get(
+    "/admin/monitor/stats",
+    response_model=MonitorStatsResponse,
+    dependencies=[Depends(require_admin)],
+)
+async def get_monitor_stats():
+    """Get service metrics, database runs, sessions, and active tenants."""
+    import os
+    # 1. Active tenants
+    keys = _load_tenant_keys()
+    active_tenants = [
+        {
+            "tenant_id": k.get("tenant_id"),
+            "name": k.get("name"),
+            "created_at": k.get("created_at"),
+            "is_active": k.get("is_active", True)
+        }
+        for k in keys
+    ]
+    
+    # 2. Total sessions
+    total_sessions = 0
+    if SESSIONS_DIR.exists():
+        try:
+            total_sessions = sum(1 for d in SESSIONS_DIR.iterdir() if d.is_dir())
+        except Exception:
+            pass
+            
+    # 3. Total runs
+    total_runs = 0
+    if RUNS_DIR.exists():
+        try:
+            total_runs = sum(1 for d in RUNS_DIR.iterdir() if d.is_dir())
+        except Exception:
+            pass
+            
+    # 4. Memory usage
+    memory_usage_mb = 0.0
+    try:
+        if os.path.exists("/proc/self/status"):
+            with open("/proc/self/status", "r", encoding="utf-8") as f:
+                for line in f:
+                    if line.startswith("VmRSS:"):
+                        parts = line.split()
+                        if len(parts) >= 2:
+                            memory_usage_mb = float(parts[1]) / 1024.0
+                            break
+    except Exception:
+        pass
+        
+    return MonitorStatsResponse(
+        active_tenants=active_tenants,
+        total_sessions=total_sessions,
+        total_runs=total_runs,
+        memory_usage_mb=memory_usage_mb,
+    )
+
+
+@app.get(
+    "/admin/monitor/logs",
+    response_model=List[LogEntry],
+    dependencies=[Depends(require_admin)],
+)
+async def get_monitor_logs(
+    limit: int = Query(100, ge=1, le=1000),
+    level: Optional[str] = Query(None),
+    keyword: Optional[str] = Query(None),
+):
+    """Retrieve uvicorn root logs from the MemoryLogHandler."""
+    return memory_log_handler.get_logs(limit=limit, level=level, keyword=keyword)
+
+
+@app.get(
     "/settings/llm",
     response_model=LLMSettingsResponse,
     dependencies=[Depends(require_local_or_auth)],
 )
-async def get_llm_settings():
+async def get_llm_settings(request: Request):
     """Return project-local LLM settings for the Web UI."""
-    return _build_llm_settings_response()
+    is_public = not _is_local_or_lan_client(request)
+    return _build_llm_settings_response(is_public=is_public)
 
 
 @app.put("/settings/llm", response_model=LLMSettingsResponse, dependencies=[Depends(require_settings_write_auth)])
-async def update_llm_settings(payload: UpdateLLMSettingsRequest):
+async def update_llm_settings(request: Request, payload: UpdateLLMSettingsRequest):
     """Persist project-local LLM settings and update the running process."""
     from src.config.paths import active_tenant_var
     tenant = active_tenant_var.get()
+    is_public = not _is_local_or_lan_client(request)
 
     if payload.use_default:
         if tenant != "default":
@@ -2418,7 +2561,7 @@ async def update_llm_settings(payload: UpdateLLMSettingsRequest):
             _delete_env_values(ENV_PATH, LLM_KEYS_TO_CLEAN)
             for key in LLM_KEYS_TO_CLEAN:
                 os.environ.pop(key, None)
-            return _build_llm_settings_response(_read_settings_env_values())
+            return _build_llm_settings_response(_read_settings_env_values(), is_public=is_public)
         else:
             raise HTTPException(status_code=400, detail="Admin cannot revert to global default")
 
@@ -2491,7 +2634,7 @@ async def update_llm_settings(payload: UpdateLLMSettingsRequest):
 
     _write_env_values(ENV_PATH, updates)
     _sync_runtime_env(provider, updates)
-    return _build_llm_settings_response(_read_env_values(ENV_PATH))
+    return _build_llm_settings_response(_read_env_values(ENV_PATH), is_public=is_public)
 
 
 
@@ -2500,9 +2643,10 @@ async def update_llm_settings(payload: UpdateLLMSettingsRequest):
     response_model=DataSourceSettingsResponse,
     dependencies=[Depends(require_local_or_auth)],
 )
-async def get_data_source_settings():
+async def get_data_source_settings(request: Request):
     """Return project-local data source credentials for the Web UI."""
-    return _build_data_source_settings_response()
+    is_public = not _is_local_or_lan_client(request)
+    return _build_data_source_settings_response(is_public=is_public)
 
 
 @app.put(
@@ -2510,10 +2654,11 @@ async def get_data_source_settings():
     response_model=DataSourceSettingsResponse,
     dependencies=[Depends(require_settings_write_auth)],
 )
-async def update_data_source_settings(payload: UpdateDataSourceSettingsRequest):
+async def update_data_source_settings(request: Request, payload: UpdateDataSourceSettingsRequest):
     """Persist project-local data source credentials and update the running process."""
     from src.config.paths import active_tenant_var
     tenant = active_tenant_var.get()
+    is_public = not _is_local_or_lan_client(request)
 
     if payload.use_default:
         if tenant != "default":
@@ -2521,7 +2666,7 @@ async def update_data_source_settings(payload: UpdateDataSourceSettingsRequest):
             _delete_env_values(ENV_PATH, DATA_SOURCE_KEYS)
             for key in DATA_SOURCE_KEYS:
                 os.environ.pop(key, None)
-            return _build_data_source_settings_response(_read_settings_env_values())
+            return _build_data_source_settings_response(_read_settings_env_values(), is_public=is_public)
         else:
             raise HTTPException(status_code=400, detail="Admin cannot revert to global default")
 
@@ -2593,7 +2738,7 @@ async def update_data_source_settings(payload: UpdateDataSourceSettingsRequest):
         else:
             os.environ.pop("FRED_API_KEY", None)
 
-    return _build_data_source_settings_response(_read_env_values(ENV_PATH))
+    return _build_data_source_settings_response(_read_env_values(ENV_PATH), is_public=is_public)
 
 
 FEISHU_SECRET_PLACEHOLDERS: set[str] = {"", "your-feishu-app-secret"}

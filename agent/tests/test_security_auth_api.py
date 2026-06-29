@@ -704,22 +704,24 @@ def test_admin_tenant_keys_crud_and_config_inheritance(
     resp = tenant_client.get("/admin/tenants/keys", headers=tenant_headers)
     assert resp.status_code == 403
     
+    local_tenant_client = _local_client()
+    
     # Tenant gets profile
-    resp = tenant_client.get("/settings/profile", headers=tenant_headers)
+    resp = local_tenant_client.get("/settings/profile", headers=tenant_headers)
     assert resp.status_code == 200
     profile = resp.json()
     assert profile["role"] == "tenant"
     assert profile["tenant_id"] == tenant_id
     
     # Tenant gets LLM settings - should inherit and mask OPENAI_API_KEY
-    resp = tenant_client.get("/settings/llm", headers=tenant_headers)
+    resp = local_tenant_client.get("/settings/llm", headers=tenant_headers)
     assert resp.status_code == 200
     llm_settings = resp.json()
     assert llm_settings["api_key_configured"] is True
     assert llm_settings["api_key_hint"] == "********"
     
     # Tenant gets data source settings - should inherit and mask TUSHARE_TOKEN
-    resp = tenant_client.get("/settings/data-sources", headers=tenant_headers)
+    resp = local_tenant_client.get("/settings/data-sources", headers=tenant_headers)
     assert resp.status_code == 200
     ds_settings = resp.json()
     assert ds_settings["tushare_token_configured"] is True
@@ -727,7 +729,7 @@ def test_admin_tenant_keys_crud_and_config_inheritance(
     
     # 4. Test writing settings as tenant
     # Tenant updates temperature and submits the masked API key "********"
-    resp = tenant_client.put(
+    resp = local_tenant_client.put(
         "/settings/llm",
         headers=tenant_headers,
         json={
@@ -753,7 +755,7 @@ def test_admin_tenant_keys_crud_and_config_inheritance(
     assert "LANGCHAIN_TEMPERATURE" not in admin_env_content
     
     # 5. Test tenant writing their own custom key
-    resp = tenant_client.put(
+    resp = local_tenant_client.put(
         "/settings/llm",
         headers=tenant_headers,
         json={
@@ -776,7 +778,7 @@ def test_admin_tenant_keys_crud_and_config_inheritance(
     
     # Read LLM settings again as tenant - it should not mask (api_key_hint should be None)
     # because it is their own key now!
-    resp = tenant_client.get("/settings/llm", headers=tenant_headers)
+    resp = local_tenant_client.get("/settings/llm", headers=tenant_headers)
     assert resp.status_code == 200
     llm_settings = resp.json()
     assert llm_settings["api_key_configured"] is True
