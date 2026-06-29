@@ -2951,8 +2951,10 @@ async def get_wechat_transient_qrcode(mode: str = "ilink"):
             else:
                 raise HTTPException(status_code=500, detail="微信 iLink 官方网关返回空数据，请稍后重试。")
         except Exception as e:
-            logger.warning("Failed to fetch official iLink QR code: %s", e)
-            raise HTTPException(status_code=500, detail=f"获取微信官方 iLink 二维码失败: {e}")
+            import traceback
+            tb = traceback.format_exc()
+            logger.exception("Failed to fetch official iLink QR code")
+            raise HTTPException(status_code=500, detail=f"获取微信官方 iLink 二维码失败: {e}\nTraceback:\n{tb}")
 
     raise HTTPException(status_code=400, detail="Unsupported mode")
 
@@ -3059,8 +3061,10 @@ async def get_wechat_channel_qrcode(channel_id: str):
         else:
             raise HTTPException(status_code=500, detail="微信 iLink 官方网关返回空数据，请稍后重试。")
     except Exception as e:
-        logger.warning("Failed to fetch official iLink QR code: %s", e)
-        raise HTTPException(status_code=500, detail=f"获取微信官方 iLink 二维码失败: {e}")
+        import traceback
+        tb = traceback.format_exc()
+        logger.exception("Failed to fetch official iLink QR code")
+        raise HTTPException(status_code=500, detail=f"获取微信官方 iLink 二维码失败: {e}\nTraceback:\n{tb}")
 
 
 @app.get(
