@@ -349,20 +349,14 @@ export function Home() {
               </div>
               <div className="relative pl-4 border-l-2 border-primary/20">
                 <span className="absolute -left-1.5 top-1.5 h-3 w-3 rounded-full bg-primary/40 border-2 border-background" />
-                <h4 className="text-xs font-semibold flex items-center gap-1.5 text-muted-foreground">
-                  v0.1.10.cnx.1.4
-                  <span className="text-[9px] px-1.5 py-0.5 rounded bg-muted text-muted-foreground font-normal">{isZh ? "已上线" : "Stable"}</span>
-                </h4>
+                <h4 className="text-xs font-semibold text-muted-foreground">v0.1.10.cnx.1.4</h4>
                 <p className="text-[10px] text-muted-foreground mt-1">
                   {isZh ? "平台级公用数据共享缓存层 (SharedMemoryHub)，开闭盘自适应调频，防御高频请求防封 IP。" : "Platform-level shared data hub, market hour adaptive polling, and A-share quote rate-limiting."}
                 </p>
               </div>
               <div className="relative pl-4 border-l-2 border-primary/20">
                 <span className="absolute -left-1.5 top-1.5 h-3 w-3 rounded-full bg-primary/40 border-2 border-background" />
-                <h4 className="text-xs font-semibold flex items-center gap-1.5 text-muted-foreground">
-                  v0.1.10.cnx.1.3
-                  <span className="text-[9px] px-1.5 py-0.5 rounded bg-muted text-muted-foreground font-normal">{isZh ? "已归档" : "Archived"}</span>
-                </h4>
+                <h4 className="text-xs font-semibold text-muted-foreground">v0.1.10.cnx.1.3</h4>
                 <p className="text-[10px] text-muted-foreground mt-1">
                   {isZh ? "平台指引与向导优化、侧边栏自适应与输入框适配、服务看板合并、运行报告鉴权加固。" : "Platform guide & onboarding optimization, responsive drawer & composer layout, monitor merging, and run detail auth fortification."}
                 </p>
@@ -401,31 +395,71 @@ export function Home() {
               <div className="relative pl-4 border-l-2 border-orange-500/20">
                 <span className="absolute -left-1.5 top-1.5 h-3 w-3 rounded-full bg-orange-500 border-2 border-background animate-pulse" />
                 <h4 className="text-xs font-semibold flex items-center gap-1.5">
-                  {isZh ? "默认选股脚本可视化" : "Selection Script Visualization"}
+                  {isZh ? "默认选股与复盘脚本可视化" : "Selection Script Visualization"}
                   <span className="text-[9px] px-1.5 py-0.5 rounded bg-amber-500/10 text-amber-600 font-normal">{isZh ? "进行中" : "In Progress"}</span>
                 </h4>
                 <p className="text-[10px] text-muted-foreground mt-1">
-                  {isZh ? "将租户已有的选股与复盘日报 Python 脚本搬上前端，一键点击执行与图文渲染。" : "Visualize historical screening and daily analysis scripts on Web UI with one-click run."}
+                  {isZh ? "将租户已有的量化选股与复盘日报 Python 脚本整合至前端，提供一键执行与图文看板渲染。" : "Visualize historical screening and daily analysis scripts on Web UI with one-click run."}
                 </p>
               </div>
               <div className="relative pl-4 border-l-2 border-orange-500/20">
                 <span className="absolute -left-1.5 top-1.5 h-3 w-3 rounded-full bg-muted border-2 border-background" />
                 <h4 className="text-xs font-semibold flex items-center gap-1.5">
-                  {isZh ? "投委会多智能体 Debate 机制" : "Investment Committee Swarm Debate"}
+                  {isZh ? "多租户并发 Key 池管理与隔离安全加固" : "Multi-tenant Key Pool & Security Hardening"}
                   <span className="text-[9px] px-1.5 py-0.5 rounded bg-muted text-muted-foreground font-normal">{isZh ? "计划中" : "Planned"}</span>
                 </h4>
                 <p className="text-[10px] text-muted-foreground mt-1">
-                  {isZh ? "多智能体围绕持仓和选股在交易前进行辩论表决，输出防偏见多视角投研结论。" : "Multi-agent committee debates portfolio choices (bull vs bear) to generate unbiased proposals."}
+                  {isZh ? "允许各租户共享或隔离定制 API 密钥池，进一步加固执行沙箱与隔离安全性。" : "Multi-tenant API keys pool sharing and sandbox verification isolation hardening."}
                 </p>
               </div>
               <div className="relative pl-4 border-l-2 border-orange-500/20">
                 <span className="absolute -left-1.5 top-1.5 h-3 w-3 rounded-full bg-muted border-2 border-background" />
                 <h4 className="text-xs font-semibold flex items-center gap-1.5">
-                  {isZh ? "VirtualBroker 模拟盘与做T网格推荐" : "VirtualBroker & Grid Recommendation"}
+                  {isZh ? "VirtualBroker 模拟盘与多空撮合交易" : "VirtualBroker Sim Trading & Matchmaking"}
+                  <span className="text-[9px] px-1.5 py-0.5 rounded bg-muted text-muted-foreground font-normal">{isZh ? "计划中" : "Planned"}</span>
+                </h4>
+                <p className="text-[10px] text-muted-foreground mt-1">
+                  {isZh ? "研发轻量级模拟柜台（支持委托、撮合、成交、撤单状态机追踪），为策略提供实测环境。" : "Lightweight local broker counter engine for matching mock orders and order lifecycle tracking."}
+                </p>
+              </div>
+              <div className="relative pl-4 border-l-2 border-orange-500/20">
+                <span className="absolute -left-1.5 top-1.5 h-3 w-3 rounded-full bg-muted border-2 border-background" />
+                <h4 className="text-xs font-semibold flex items-center gap-1.5">
+                  {isZh ? "盘前个股做T网格策略建议生成" : "Pre-market Grid Recommendations"}
+                  <span className="text-[9px] px-1.5 py-0.5 rounded bg-muted text-muted-foreground font-normal">{isZh ? "计划中" : "Planned"}</span>
+                </h4>
+                <p className="text-[10px] text-muted-foreground mt-1">
+                  {isZh ? "每日开盘前，根据历史波动特征自动生成个股网格做T压力支撑位及额度配置建议。" : "Automated pre-market support/resistance grid calculation and sizing guidelines."}
+                </p>
+              </div>
+              <div className="relative pl-4 border-l-2 border-orange-500/20">
+                <span className="absolute -left-1.5 top-1.5 h-3 w-3 rounded-full bg-muted border-2 border-background" />
+                <h4 className="text-xs font-semibold flex items-center gap-1.5">
+                  {isZh ? "Monaco 在线代码编辑器与沙箱编译器" : "Online Code Editor & Sandbox Compiler"}
                   <span className="text-[9px] px-1.5 py-0.5 rounded bg-muted text-muted-foreground font-normal">{isZh ? "规划中" : "Proposed"}</span>
                 </h4>
                 <p className="text-[10px] text-muted-foreground mt-1">
-                  {isZh ? "研发闭环模拟柜台与委托追踪，盘前自动生成个股网格策略建议。" : "Virtual counter broker for simulating orders with automated daily grid recommendations."}
+                  {isZh ? "集成 Monaco 编辑器，支持专业交易员在 Web 界面直接编写、修改并编译运行策略。" : "Embed Monaco editor to write, tweak, compile, and backtest custom strategies on the fly."}
+                </p>
+              </div>
+              <div className="relative pl-4 border-l-2 border-orange-500/20">
+                <span className="absolute -left-1.5 top-1.5 h-3 w-3 rounded-full bg-muted border-2 border-background" />
+                <h4 className="text-xs font-semibold flex items-center gap-1.5">
+                  {isZh ? "VLM 视觉研报与 K线技术形态识别" : "VLM Visual Pattern Recognition"}
+                  <span className="text-[9px] px-1.5 py-0.5 rounded bg-muted text-muted-foreground font-normal">{isZh ? "规划中" : "Proposed"}</span>
+                </h4>
+                <p className="text-[10px] text-muted-foreground mt-1">
+                  {isZh ? "利用视觉大模型（VLM）读取 K线走势图并自动识别技术形态（如双底、头肩底等）。" : "Leverage Multi-modal Vision LLMs to read charts and identify classic tech patterns."}
+                </p>
+              </div>
+              <div className="relative pl-4 border-l-2 border-orange-500/20">
+                <span className="absolute -left-1.5 top-1.5 h-3 w-3 rounded-full bg-muted border-2 border-background" />
+                <h4 className="text-xs font-semibold flex items-center gap-1.5">
+                  {isZh ? "多窗口、可拖拽式桌面工作台" : "Multi-Window Desktop Workspace"}
+                  <span className="text-[9px] px-1.5 py-0.5 rounded bg-muted text-muted-foreground font-normal">{isZh ? "规划中" : "Proposed"}</span>
+                </h4>
+                <p className="text-[10px] text-muted-foreground mt-1">
+                  {isZh ? "打造基于 Electron/Tauri 的桌面端，提供支持多屏幕自由分割、拖放的专业交易控制台。" : "Tauri-based multi-screen desktop workspace with dockable window manager."}
                 </p>
               </div>
             </div>
