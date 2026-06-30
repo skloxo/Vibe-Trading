@@ -1,11 +1,10 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import type { ReactNode } from "react";
 import { useTranslation } from "react-i18next";
 import type { TFunction } from "i18next";
 import {
   Activity,
   AlertTriangle,
-  CheckCircle2,
   Clock3,
   Loader2,
   OctagonX,
@@ -80,7 +79,7 @@ export function Runtime() {
     };
   }, [loadStatus]);
 
-  const summary = useMemo(() => summarizeRuntime(status), [status]);
+
 
   return (
     <div className="min-h-screen p-6 lg:p-8">
@@ -131,27 +130,7 @@ export function Runtime() {
 
         {!loading && !error && status ? (
           <>
-            <section className="grid gap-3 md:grid-cols-4">
-              <SummaryTile
-                label={t("runtime.globalHalt")}
-                value={status.global_halted ? t("runtime.halted") : t("runtime.clear")}
-                tone={status.global_halted ? "danger" : "success"}
-                icon={status.global_halted ? OctagonX : CheckCircle2}
-              />
-              <SummaryTile label={t("runtime.brokers")} value={String(summary.brokerCount)} tone="neutral" icon={Activity} />
-              <SummaryTile
-                label={t("runtime.authorized")}
-                value={String(summary.authorizedCount)}
-                tone={summary.authorizedCount > 0 ? "success" : "neutral"}
-                icon={summary.authorizedCount > 0 ? Wifi : WifiOff}
-              />
-              <SummaryTile
-                label={t("runtime.runners")}
-                value={t("runtime.running", { count: summary.runningCount })}
-                tone={summary.runningCount > 0 && !status.global_halted ? "success" : "neutral"}
-                icon={summary.runningCount > 0 ? Activity : Clock3}
-              />
-            </section>
+
 
             {status.brokers.length === 0 ? (
               <section className="rounded-md border border-dashed p-8 text-center">
@@ -173,46 +152,12 @@ export function Runtime() {
   );
 }
 
-interface SummaryTileProps {
-  label: string;
-  value: string;
-  tone: "success" | "danger" | "neutral";
-  icon: typeof Activity;
-}
-
 function isCurrentStatusRequest(
   activeRequest: { id: number; controller: AbortController } | null,
   requestId: number,
   controller: AbortController,
 ): boolean {
   return activeRequest?.id === requestId && activeRequest.controller === controller;
-}
-
-function SummaryTile({ label, value, tone, icon: Icon }: SummaryTileProps) {
-  return (
-    <div className="rounded-md border p-4">
-      <div className="flex items-center justify-between gap-3">
-        <span className="text-xs font-medium uppercase text-muted-foreground">{label}</span>
-        <Icon
-          className={cn(
-            "h-4 w-4",
-            tone === "success" && "text-success",
-            tone === "danger" && "text-danger",
-            tone === "neutral" && "text-muted-foreground",
-          )}
-        />
-      </div>
-      <div
-        className={cn(
-          "mt-3 text-2xl font-semibold",
-          tone === "success" && "text-success",
-          tone === "danger" && "text-danger",
-        )}
-      >
-        {value}
-      </div>
-    </div>
-  );
 }
 
 function BrokerRuntimeCard({
@@ -320,14 +265,6 @@ function StatusPill({ label, tone }: { label: string; tone: "success" | "danger"
   );
 }
 
-function summarizeRuntime(status: LiveStatus | null) {
-  const brokers = status?.brokers || [];
-  return {
-    brokerCount: brokers.length,
-    authorizedCount: brokers.filter((broker) => broker.auth.oauth_token_present).length,
-    runningCount: brokers.filter((broker) => broker.runner?.alive).length,
-  };
-}
 
 function deriveRiskState(broker: LiveBrokerStatus, globalHalted: boolean, t: TFunction): {
   label: string;

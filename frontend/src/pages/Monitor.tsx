@@ -2,7 +2,7 @@ import { useEffect, useState, type FormEvent } from "react";
 import { useTranslation } from "react-i18next";
 import { createPortal } from "react-dom";
 import { toast } from "sonner";
-import { api, type MonitorStats, type QuoteGatewayStatus, type TenantKey, type SystemVersionInfo } from "@/lib/api";
+import { api, type MonitorStats, type QuoteGatewayStatus, type TenantKey, type SystemVersionInfo, type LiveStatus } from "@/lib/api";
 import { Activity, Server, Database, FolderHeart, RefreshCw, Wifi, KeyRound, Power, Trash2, ArrowUpCircle, Loader2, Copy, Check, Save, Plus } from "lucide-react";
 
 export function Monitor() {
@@ -32,6 +32,9 @@ export function Monitor() {
   const [upgrading, setUpgrading] = useState(false);
   const [upgradeCountdown, setUpgradeCountdown] = useState(0);
   const [showUpgradeModal, setShowUpgradeModal] = useState(false);
+
+  const [liveStatus, setLiveStatus] = useState<LiveStatus | null>(null);
+  const [liveLoading, setLiveLoading] = useState(false);
 
   const fetchQuoteStatus = async (showLoading = false, showToast = false) => {
     if (showLoading) setQuoteLoading(true);
@@ -98,16 +101,36 @@ export function Monitor() {
     }
   };
 
+  const fetchLiveStatus = async (showLoading = false, showToast = false) => {
+    if (showLoading) setLiveLoading(true);
+    try {
+      const data = await api.getLiveStatus();
+      setLiveStatus(data);
+      if (showToast) {
+        toast.success(isZh ? "实盘引擎状态刷新成功" : "Live trading status refreshed successfully");
+      }
+    } catch (err) {
+      console.error("Failed to fetch live status:", err);
+      if (showToast) {
+        toast.error(isZh ? "刷新实盘引擎状态失败" : "Failed to refresh live trading status");
+      }
+    } finally {
+      if (showLoading) setLiveLoading(false);
+    }
+  };
+
   // Initial load and periodic stats/quote refresh
   useEffect(() => {
     fetchStats();
     fetchQuoteStatus(true, false);
     fetchTenantKeys();
     fetchVersionInfo(false);
+    fetchLiveStatus(true, false);
 
     const interval = setInterval(() => {
       fetchStats();
       fetchQuoteStatus(false, false);
+      fetchLiveStatus(false, false);
     }, 10000); // Stats and Quote Gateway refresh every 10s
     return () => clearInterval(interval);
   }, []);
@@ -205,7 +228,8 @@ export function Monitor() {
               fetchStats(),
               fetchQuoteStatus(true, false),
               fetchTenantKeys(),
-              fetchVersionInfo(false)
+              fetchVersionInfo(false),
+              fetchLiveStatus(true, false)
             ]);
             toast.success(isZh ? "监控看板数据已全部更新" : "All monitor dashboard stats updated");
           }}
@@ -420,8 +444,8 @@ export function Monitor() {
           </div>
         </div>
 
-        {/* Right Column: Realtime Quote Gateway & System Version Cards */}
-        <div className="space-y-6 flex flex-col justify-between">
+        {/* Right Column: Realtime Quote Gateway, Live Engine & System Version Cards */}
+        <div className="space-y-6">
           {/* 1. Realtime Quote Gateway Card */}
           {quoteStatus && (
             <div className="rounded-lg border bg-card p-5 shadow-sm space-y-4">
@@ -506,7 +530,63 @@ export function Monitor() {
             </div>
           )}
 
-          {/* 2. System Version Management Card */}
+          {/* 2. Live Trading Engine Card */}
+          {liveStatus && (
+            <div className="rounded-lg border bg-card p-5 shadow-sm space-y-4">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b pb-4">
+                <div className="flex items-center gap-3">
+                  <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-primary/10">
+                    <Activity className="h-5 w-5 text-primary" />
+                  </div>
+                  <div>
+                    <h2 className="text-base font-semibold">{isZh ? "实盘引擎监控" : "Live Trading Monitor"}</h2>
+                    <p className="text-xs text-muted-foreground mt-0.5">
+                      {isZh ? "全局交易熔断与连接器状态汇总" : "Global halt and connector summary"}
+                    </p>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => fetchLiveStatus(true, true)}
+                  disabled={liveLoading}
+                  className="inline-flex items-center justify-center gap-1.5 rounded-md border border-input bg-background px-3 py-1.5 text-xs font-medium hover:bg-accent transition cursor-pointer disabled:opacity-60"
+                >
+                  <RefreshCw className={`h-3.5 w-3.5 ${liveLoading ? "animate-spin" : ""}`} />
+                  {isZh ? "刷新状态" : "Refresh"}
+                </button>
+              </div>
+
+              <div className="grid gap-4 grid-cols-3">
+                <div className="rounded-md border bg-muted/10 p-3 flex flex-col justify-between">
+                  <span className="text-[10px] text-muted-foreground">{isZh ? "全局熔断状态" : "Global Halt"}</span>
+                  <div className="flex items-center gap-1.5 mt-1">
+                    <span className={`h-2 w-2 rounded-full ${
+                      liveStatus.global_halted ? "bg-destructive animate-pulse" : "bg-success"
+                    }`} />
+                    <span className="text-xs font-semibold">
+                      {liveStatus.global_halted ? (isZh ? "紧急已熔断" : "HALTED") : (isZh ? "交易运转正常" : "NORMAL")}
+                    </span>
+                  </div>
+                </div>
+
+                <div className="rounded-md border bg-muted/10 p-3 flex flex-col justify-between">
+                  <span className="text-[10px] text-muted-foreground">{isZh ? "已授权连接数" : "Authorized Conns"}</span>
+                  <span className="text-sm font-bold mt-1 font-mono">
+                    {liveStatus.brokers.filter(b => b.auth.oauth_token_present).length} <span className="text-[10px] font-normal text-muted-foreground">/ {liveStatus.brokers.length}</span>
+                  </span>
+                </div>
+
+                <div className="rounded-md border bg-muted/10 p-3 flex flex-col justify-between">
+                  <span className="text-[10px] text-muted-foreground">{isZh ? "活跃运行器" : "Active Runners"}</span>
+                  <span className="text-sm font-bold mt-1 font-mono">
+                    {liveStatus.brokers.filter(b => b.runner?.alive).length} <span className="text-[10px] font-normal text-muted-foreground">/ {liveStatus.brokers.length}</span>
+                  </span>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* 3. System Version Management Card */}
           {versionInfo && (
             <div className="rounded-lg border bg-card p-5 shadow-sm space-y-4">
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b pb-4">
