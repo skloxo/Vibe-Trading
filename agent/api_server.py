@@ -2526,6 +2526,7 @@ async def get_system_version(request: Request):
 
     latest_ver = current_ver
     has_update = False
+    git_success = False
 
     try:
         subprocess.run(
@@ -2546,8 +2547,28 @@ async def get_system_version(request: Request):
             if tag:
                 latest_ver = tag
                 has_update = (latest_ver != current_ver)
+                git_success = True
     except Exception:
         pass
+
+    if not git_success:
+        # Fallback to GitHub API since we are likely running in a Docker container without git
+        try:
+            import urllib.request
+            import json
+            req = urllib.request.Request(
+                "https://api.github.com/repos/skloxo/Vibe-Trading-CNX/releases/latest",
+                headers={"User-Agent": "Vibe-Trading-CNX"}
+            )
+            with urllib.request.urlopen(req, timeout=3) as response:
+                if response.status == 200:
+                    data = json.loads(response.read().decode("utf-8"))
+                    tag = data.get("tag_name")
+                    if tag:
+                        latest_ver = tag
+                        has_update = (latest_ver != current_ver)
+        except Exception:
+            pass
 
     return {
         "current_version": current_ver,
