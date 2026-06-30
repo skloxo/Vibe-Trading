@@ -132,14 +132,14 @@ describe("Runtime page", () => {
       second.resolve(makeStatus({ global_halted: true }));
       await second.promise;
     });
-    expect(await screen.findByText("halted")).toBeInTheDocument();
+    expect((await screen.findAllByText("halted")).length).toBeGreaterThan(0);
 
     await act(async () => {
       first.resolve(makeStatus());
       await first.promise;
     });
 
-    expect(screen.getByText("halted")).toBeInTheDocument();
+    expect((await screen.findAllByText("halted")).length).toBeGreaterThan(0);
     expect(screen.queryByText("paper")).toBeInTheDocument();
   });
 
@@ -159,12 +159,11 @@ describe("Runtime page", () => {
   });
 
   it("renders sub-minute mandate expiry as seconds", async () => {
-    vi.useFakeTimers();
-    const now = new Date("2026-06-30T12:00:00Z");
-    vi.setSystemTime(now);
+    const mockNow = 1719744000000;
+    const dateSpy = vi.spyOn(Date, "now").mockReturnValue(mockNow);
 
     const baseStatus = makeStatus();
-    const expiresAt = new Date(now.getTime() + 45_000).toISOString();
+    const expiresAt = new Date(mockNow + 45_000).toISOString();
     apiMock.getLiveStatus.mockResolvedValue(makeStatus({
       brokers: [
         {
@@ -180,6 +179,6 @@ describe("Runtime page", () => {
     render(<Runtime />);
 
     expect(await screen.findByText("45s")).toBeInTheDocument();
-    vi.useRealTimers();
+    dateSpy.mockRestore();
   });
 });

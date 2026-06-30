@@ -5,12 +5,10 @@ import {
   BarChart3,
   Zap,
   UserCircle2,
-  Network,
   Database,
   ShieldAlert,
   Wrench,
   Cpu,
-  Layers,
   Settings,
   HelpCircle,
   Activity,
@@ -19,7 +17,7 @@ import {
 import { useTranslation } from "react-i18next";
 
 export function Home() {
-  const { t, i18n } = useTranslation();
+  const { i18n } = useTranslation();
   const isZh = i18n.language?.startsWith("zh");
 
   // Features list
