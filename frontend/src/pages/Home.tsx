@@ -61,7 +61,7 @@ export function Home() {
         
         <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full border border-primary/20 bg-primary/5 text-primary text-xs font-semibold">
           <Activity className="h-3 w-3 animate-pulse" />
-          <span>v0.1.10.cnx.1.4 Stable</span>
+          <span>v0.1.10.cnx.1.3 Stable</span>
         </div>
 
         <h1 className="text-4xl md:text-5xl font-extrabold tracking-tight bg-gradient-to-r from-primary via-orange-500 to-amber-500 bg-clip-text text-transparent">
@@ -340,18 +340,11 @@ export function Home() {
               <div className="relative pl-4 border-l-2 border-primary/20">
                 <span className="absolute -left-1.5 top-1.5 h-3 w-3 rounded-full bg-primary border-2 border-background animate-pulse" />
                 <h4 className="text-xs font-semibold flex items-center gap-1.5">
-                  v0.1.10.cnx.1.4
+                  v0.1.10.cnx.1.3
                   <span className="text-[9px] px-1.5 py-0.5 rounded bg-emerald-500/10 text-emerald-500 font-normal">{isZh ? "已上线" : "Stable"}</span>
                 </h4>
                 <p className="text-[10px] text-muted-foreground mt-1">
-                  {isZh ? "首页产品文案及上手向导优化，精简冗余操作按钮，迭代记录补齐与一致性规范化。" : "Optimized homepage copy, onboarding wizard, and complete milestone consistency."}
-                </p>
-              </div>
-              <div className="relative pl-4 border-l-2 border-primary/20">
-                <span className="absolute -left-1.5 top-1.5 h-3 w-3 rounded-full bg-primary/60 border-2 border-background" />
-                <h4 className="text-xs font-semibold">v0.1.10.cnx.1.3</h4>
-                <p className="text-[10px] text-muted-foreground mt-1">
-                  {isZh ? "平台指引优化、侧边栏 H5 自适应抽屉修复、系统参数与日志加固监控。" : "Platform guide optimization, responsive drawer navigation, and system parameter monitors."}
+                  {isZh ? "平台指引与向导优化、侧边栏自适应与输入框适配、服务看板合并、运行报告鉴权加固。" : "Platform guide & onboarding optimization, responsive drawer & composer layout, monitor merging, and run detail auth fortification."}
                 </p>
               </div>
               <div className="relative pl-4 border-l-2 border-primary/20">
