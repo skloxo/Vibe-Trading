@@ -707,10 +707,10 @@ export function Settings() {
         
         {/* Render Tab Sub-Navigation if is_local is true */}
         {profile?.is_local && (
-          <div className="flex bg-muted p-1 rounded-lg border border-border/80 self-start md:self-center">
+          <div className="flex w-full md:w-auto bg-muted p-1 rounded-lg border border-border/80 self-stretch md:self-center">
             <button
               onClick={() => handleTabChange("project")}
-              className={`px-4 py-1.5 text-xs font-semibold rounded-md transition ${
+              className={`flex-1 md:flex-none px-4 py-1.5 text-xs font-semibold rounded-md transition text-center ${
                 activeSubTab === "project"
                   ? "bg-background text-foreground shadow-sm"
                   : "text-muted-foreground hover:text-foreground"
@@ -720,7 +720,7 @@ export function Settings() {
             </button>
             <button
               onClick={() => handleTabChange("user")}
-              className={`px-4 py-1.5 text-xs font-semibold rounded-md transition ${
+              className={`flex-1 md:flex-none px-4 py-1.5 text-xs font-semibold rounded-md transition text-center ${
                 activeSubTab === "user"
                   ? "bg-background text-foreground shadow-sm"
                   : "text-muted-foreground hover:text-foreground"

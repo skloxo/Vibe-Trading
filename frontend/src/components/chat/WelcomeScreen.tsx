@@ -43,9 +43,9 @@ const CATEGORIES: Category[] = [
     color: "text-amber-400 border-amber-500/30 hover:border-amber-500/60 hover:bg-amber-500/5",
     examples: [
       {
-        titleKey: "welcome.examples.multiFactorAlpha",
-        descKey: "welcome.examples.multiFactorAlphaDesc",
-        promptKey: "welcome.examples.multiFactorAlphaPrompt",
+        titleKey: "welcome.examples.wencaiFactorSelect",
+        descKey: "welcome.examples.wencaiFactorSelectDesc",
+        promptKey: "welcome.examples.wencaiFactorSelectPrompt",
       },
       {
         titleKey: "welcome.examples.optionsGreeks",
@@ -111,9 +111,9 @@ const CATEGORIES: Category[] = [
     color: "text-cyan-400 border-cyan-500/30 hover:border-cyan-500/60 hover:bg-cyan-500/5",
     examples: [
       {
-        titleKey: "welcome.examples.checkConnector",
-        descKey: "welcome.examples.checkConnectorDesc",
-        promptKey: "welcome.examples.checkConnectorPrompt",
+        titleKey: "welcome.examples.longbridgeTradeMandate",
+        descKey: "welcome.examples.longbridgeTradeMandateDesc",
+        promptKey: "welcome.examples.longbridgeTradeMandatePrompt",
       },
       {
         titleKey: "welcome.examples.analyzePortfolio",
@@ -121,9 +121,9 @@ const CATEGORIES: Category[] = [
         promptKey: "welcome.examples.analyzePortfolioPrompt",
       },
       {
-        titleKey: "welcome.examples.quoteTrend",
-        descKey: "welcome.examples.quoteTrendDesc",
-        promptKey: "welcome.examples.quoteTrendPrompt",
+        titleKey: "welcome.examples.tdxGatewayQuery",
+        descKey: "welcome.examples.tdxGatewayQueryDesc",
+        promptKey: "welcome.examples.tdxGatewayQueryPrompt",
       },
     ],
   },

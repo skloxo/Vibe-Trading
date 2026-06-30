@@ -247,7 +247,7 @@ export function Monitor() {
       )}
 
       {/* Grid of Stats */}
-      <div className="grid gap-4 md:grid-cols-4">
+      <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-4">
         {/* Memory Usage */}
         <div className="rounded-lg border bg-card p-5 shadow-sm space-y-2 flex flex-col justify-between">
           <div className="flex items-center justify-between">
@@ -355,8 +355,8 @@ export function Monitor() {
               </button>
             </div>
 
-            <div className="overflow-auto max-h-[420px]">
-              <table className="w-full border-collapse text-left text-xs text-muted-foreground">
+            <div className="w-full overflow-x-auto overflow-y-auto max-h-[420px] scrollbar-thin">
+              <table className="w-full min-w-[600px] border-collapse text-left text-xs text-muted-foreground">
                 <thead>
                   <tr className="border-b border-border text-[10px] font-semibold uppercase tracking-wider text-muted-foreground bg-muted/30">
                     <th className="px-3 py-2.5">{isZh ? "租户备注名称" : "Tenant Nickname"}</th>

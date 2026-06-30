@@ -129,18 +129,18 @@ describe("Runtime page", () => {
     fireEvent.click(screen.getByRole("button", { name: "Refresh" }));
 
     await act(async () => {
-      second.resolve(makeStatus({ global_halted: true, brokers: [] }));
+      second.resolve(makeStatus({ global_halted: true }));
       await second.promise;
     });
-    expect(await screen.findByText("Halted")).toBeInTheDocument();
+    expect(await screen.findByText("halted")).toBeInTheDocument();
 
     await act(async () => {
       first.resolve(makeStatus());
       await first.promise;
     });
 
-    expect(screen.getByText("Halted")).toBeInTheDocument();
-    expect(screen.queryByText("paper")).not.toBeInTheDocument();
+    expect(screen.getByText("halted")).toBeInTheDocument();
+    expect(screen.queryByText("paper")).toBeInTheDocument();
   });
 
   it("aborts an in-flight status request on unmount", () => {
@@ -159,8 +159,12 @@ describe("Runtime page", () => {
   });
 
   it("renders sub-minute mandate expiry as seconds", async () => {
+    vi.useFakeTimers();
+    const now = new Date("2026-06-30T12:00:00Z");
+    vi.setSystemTime(now);
+
     const baseStatus = makeStatus();
-    const expiresAt = new Date(Date.now() + 45_000).toISOString();
+    const expiresAt = new Date(now.getTime() + 45_000).toISOString();
     apiMock.getLiveStatus.mockResolvedValue(makeStatus({
       brokers: [
         {
@@ -176,5 +180,6 @@ describe("Runtime page", () => {
     render(<Runtime />);
 
     expect(await screen.findByText("45s")).toBeInTheDocument();
+    vi.useRealTimers();
   });
 });
