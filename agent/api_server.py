@@ -2529,9 +2529,9 @@ async def get_system_version(request: Request):
 
     try:
         subprocess.run(
-            ["git", "fetch", "--tags"],
+            ["git", "fetch", "--all", "--tags"],
             capture_output=True,
-            timeout=3,
+            timeout=5,
             cwd=str(AGENT_DIR.parent)
         )
         res = subprocess.run(
