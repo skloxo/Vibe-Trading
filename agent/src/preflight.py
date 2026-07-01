@@ -248,6 +248,64 @@ def _check_ccxt() -> CheckResult:
     return CheckResult(name="ccxt", status="ready", message="installed", impact="")
 
 
+def _check_mootdx_and_heal() -> CheckResult:
+    """Verify mootdx config integrity and self-heal if corrupted."""
+    try:
+        from pathlib import Path
+        import json
+        config_path = Path.home() / ".mootdx" / "config.json"
+        if config_path.exists():
+            try:
+                data = json.loads(config_path.read_text(encoding="utf-8"))
+                bestip = data.get("BESTIP", {})
+                if not bestip or not bestip.get("HQ") or not bestip.get("EX"):
+                    # Corrupted config detected, delete it to trigger auto-recreation
+                    config_path.unlink()
+                    from mootdx import config
+                    config.setup()
+                    return CheckResult(
+                        name="mootdx config",
+                        status="ready",
+                        message="healed corrupted BESTIP on startup",
+                        impact=""
+                    )
+            except Exception as e:
+                # Failed to parse, delete it
+                try:
+                    config_path.unlink()
+                    from mootdx import config
+                    config.setup()
+                    return CheckResult(
+                        name="mootdx config",
+                        status="ready",
+                        message=f"recreated invalid json config: {e}",
+                        impact=""
+                    )
+                except Exception:
+                    pass
+        else:
+            # Create config on startup if not present
+            try:
+                from mootdx import config
+                config.setup()
+                return CheckResult(
+                    name="mootdx config",
+                    status="ready",
+                    message="initialized new config on startup",
+                    impact=""
+                )
+            except Exception:
+                pass
+        return CheckResult(name="mootdx config", status="ready", message="ready", impact="")
+    except Exception as exc:
+        return CheckResult(
+            name="mootdx config",
+            status="error",
+            message=f"Check failed: {exc}",
+            impact="A-share real-time query might fail",
+        )
+
+
 # -- Status icons and colors --------------------------------------------------
 
 _STATUS_DISPLAY = {
@@ -277,6 +335,7 @@ def run_preflight(console: Optional[Console] = None) -> List[CheckResult]:
         _check_tushare,
         _check_akshare,
         _check_ccxt,
+        _check_mootdx_and_heal,
         _check_content_filter_threshold,
     ]
 
