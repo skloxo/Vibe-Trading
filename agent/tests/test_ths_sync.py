@@ -71,8 +71,7 @@ def test_ths_cookie_connection_testing(client: TestClient) -> None:
         # Success response mock
         mock_response = MagicMock()
         mock_response.status_code = 200
-        mock_response.json.return_ok = lambda: {"error_code": 0, "result": {"list": [{"code": "600519", "name": "贵州茅台"}]}}
-        mock_response.json.return_value = {"error_code": 0, "result": {"list": [{"code": "600519", "name": "贵州茅台"}]}}
+        mock_response.json.return_value = {"status_code": 0, "data": {"selfstock": "600519,33", "version": "1"}}
         mock_get.return_value = mock_response
 
         response = client.post("/settings/ths/test", json={"cookie": "test-cookie"})
