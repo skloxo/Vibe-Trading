@@ -3,6 +3,7 @@ import {
   Cpu, Terminal, Settings, Check, Lock, Unlock, Grid
 } from "lucide-react";
 import RGL, { Responsive } from "react-grid-layout";
+import { api } from "@/lib/api";
 
 import "react-grid-layout/css/styles.css";
 import "react-resizable/css/styles.css";
@@ -75,11 +76,31 @@ export function GlobalDashboard() {
   const [showConfig, setShowConfig] = useState(false);
   const [isLayoutLocked, setIsLayoutLocked] = useState(true);
 
-  // Load layouts from localStorage if available
-  const [layouts, setLayouts] = useState(() => {
-    const saved = localStorage.getItem("vibe-dashboard-layout");
+  // Load layouts from localStorage / default layout initially
+  const [layouts, setLayouts] = useState<any>(() => {
+    const saved = localStorage.getItem(`vibe-dashboard-layout_${currentTenant}`);
     return saved ? JSON.parse(saved) : DEFAULT_LAYOUTS;
   });
+
+  // Fetch layout from backend database/file system on tenant change (cross-browser persistent)
+  useEffect(() => {
+    let alive = true;
+    api.getDashboardLayout()
+      .then((data) => {
+        if (!alive) return;
+        if (data && Object.keys(data).length > 0) {
+          setLayouts(data);
+        } else {
+          // Fallback to local storage or defaults
+          const saved = localStorage.getItem(`vibe-dashboard-layout_${currentTenant}`);
+          setLayouts(saved ? JSON.parse(saved) : DEFAULT_LAYOUTS);
+        }
+      })
+      .catch((err) => {
+        console.error("Failed to load dashboard layout from backend:", err);
+      });
+    return () => { alive = false; };
+  }, [currentTenant]);
 
   // Map of tenant roles to allowed widgets
   const TENANT_WIDGETS: Record<string, string[]> = {
@@ -119,7 +140,11 @@ export function GlobalDashboard() {
   const handleLayoutChange = (_currentLayout: any, allLayouts: any) => {
     if (!isLayoutLocked) {
       setLayouts(allLayouts);
-      localStorage.setItem("vibe-dashboard-layout", JSON.stringify(allLayouts));
+      localStorage.setItem(`vibe-dashboard-layout_${currentTenant}`, JSON.stringify(allLayouts));
+      // Persist to backend database for cross-browser synchronization
+      api.saveDashboardLayout(allLayouts).catch((err) => {
+        console.error("Failed to persist dashboard layout to backend:", err);
+      });
     }
   };
 

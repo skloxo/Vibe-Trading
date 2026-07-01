@@ -264,6 +264,12 @@ export const api = {
       body: JSON.stringify({ broker }),
     }),
   getSettingsProfile: () => request<UserProfile>("/settings/profile"),
+  getDashboardLayout: () => request<any>("/settings/dashboard-layout"),
+  saveDashboardLayout: (layout: any) =>
+    request<{ status: string }>("/settings/dashboard-layout", {
+      method: "PUT",
+      body: JSON.stringify(layout),
+    }),
   getMonitorStats: () => request<MonitorStats>("/admin/monitor/stats"),
   getMonitorLogs: (params?: { limit?: number; level?: string; keyword?: string }) => {
     const q = new URLSearchParams();

@@ -3638,6 +3638,43 @@ async def get_feature_flags():
     )
 
 
+@app.get(
+    "/settings/dashboard-layout",
+    dependencies=[Depends(require_local_or_auth)],
+)
+async def get_dashboard_layout():
+    """Load dashboard layout configuration for the active tenant."""
+    from src.config.paths import active_tenant_var
+    tenant = active_tenant_var.get()
+    layout_path = AGENT_DIR / "runs" / f"dashboard_layout_{tenant}.json"
+    if layout_path.exists():
+        try:
+            with open(layout_path, "r", encoding="utf-8") as f:
+                return json.load(f)
+        except Exception as e:
+            logger.warning("Failed to read dashboard layout for tenant %s: %s", tenant, e)
+    return {}
+
+
+@app.put(
+    "/settings/dashboard-layout",
+    dependencies=[Depends(require_settings_write_auth)],
+)
+async def update_dashboard_layout(payload: dict):
+    """Save dashboard layout configuration for the active tenant."""
+    from src.config.paths import active_tenant_var
+    tenant = active_tenant_var.get()
+    layout_path = AGENT_DIR / "runs" / f"dashboard_layout_{tenant}.json"
+    try:
+        os.makedirs(layout_path.parent, exist_ok=True)
+        with open(layout_path, "w", encoding="utf-8") as f:
+            json.dump(payload, f, ensure_ascii=False, indent=2)
+        return {"status": "success"}
+    except Exception as e:
+        logger.error("Failed to save dashboard layout for tenant %s: %s", tenant, e)
+        raise HTTPException(status_code=500, detail=f"Failed to save layout: {e}")
+
+
 @app.get("/health", response_model=HealthResponse)
 async def health_check():
     """Liveness probe."""
