@@ -565,7 +565,7 @@ export function GlobalDashboard() {
 
           {/* KolOpinions widget */}
           {enabledWidgets.kol && isWidgetAllowed("kol") && (
-            <div key="kol" className="bg-[#10101a]/80 border border-slate-200 dark:border-[#222233] rounded overflow-hidden shadow-sm dark:shadow-none">
+            <div key="kol" className="border border-border/80 bg-card/90 backdrop-blur-md rounded-xl overflow-hidden shadow-sm transition-all duration-300 hover:shadow-lg hover:shadow-rose-500/5">
               {!isLayoutLocked && <div className="drag-handle h-4 bg-slate-200 dark:bg-[#1a1a2e] cursor-move flex items-center justify-center"><Grid className="h-3 w-3 text-slate-400" /></div>}
               <KolOpinions data={marketData?.kol} />
             </div>
@@ -573,7 +573,7 @@ export function GlobalDashboard() {
 
           {/* MobileAlerts widget */}
           {enabledWidgets.alerts && isWidgetAllowed("alerts") && (
-            <div key="alerts" className="bg-[#10101a]/80 border border-slate-200 dark:border-[#222233] rounded overflow-hidden shadow-sm dark:shadow-none">
+            <div key="alerts" className="border border-border/80 bg-card/90 backdrop-blur-md rounded-xl overflow-hidden shadow-sm transition-all duration-300 hover:shadow-lg hover:shadow-rose-500/5">
               {!isLayoutLocked && <div className="drag-handle h-4 bg-slate-200 dark:bg-[#1a1a2e] cursor-move flex items-center justify-center"><Grid className="h-3 w-3 text-slate-400" /></div>}
               <MobileAlerts data={marketData?.alerts} />
             </div>
@@ -581,7 +581,7 @@ export function GlobalDashboard() {
 
           {/* Portfolio widget */}
           {enabledWidgets.portfolio && isWidgetAllowed("portfolio") && (
-            <div key="portfolio" className="bg-[#10101a]/80 border border-slate-200 dark:border-[#222233] rounded overflow-hidden shadow-sm dark:shadow-none">
+            <div key="portfolio" className="border border-border/80 bg-card/90 backdrop-blur-md rounded-xl overflow-hidden shadow-sm transition-all duration-300 hover:shadow-lg hover:shadow-rose-500/5">
               {!isLayoutLocked && <div className="drag-handle h-4 bg-slate-200 dark:bg-[#1a1a2e] cursor-move flex items-center justify-center"><Grid className="h-3 w-3 text-slate-400" /></div>}
               <Portfolio data={marketData?.portfolio} netAsset={marketData?.netAsset} />
             </div>
@@ -589,9 +589,9 @@ export function GlobalDashboard() {
 
           {/* Simulation logs terminal widget */}
           {enabledWidgets.logsTerminal && isWidgetAllowed("logsTerminal") && (
-            <div key="logsTerminal" className="border border-border/80 rounded-xl overflow-hidden flex flex-col shadow-sm transition-all duration-300 hover:shadow-lg hover:shadow-rose-500/5">
+            <div key="logsTerminal" className="border border-border/80 bg-card/90 backdrop-blur-md rounded-xl overflow-hidden flex flex-col shadow-sm transition-all duration-300 hover:shadow-lg hover:shadow-rose-500/5">
               {!isLayoutLocked && <div className="drag-handle h-4 bg-slate-200 dark:bg-[#1a1a2e] cursor-move flex items-center justify-center shrink-0"><Grid className="h-3 w-3 text-slate-400" /></div>}
-              <div className="border-b border-border/60 px-3 py-2 flex justify-between items-center bg-muted/80 backdrop-blur-md shrink-0">
+              <div className="border-b border-border/60 px-3 py-2 flex justify-between items-center bg-card/50 backdrop-blur-md shrink-0">
                 <span className="text-[11px] font-black tracking-wider text-muted-foreground uppercase flex items-center gap-1.5 font-mono">
                   <Terminal className="h-3.5 w-3.5 text-rose-500" />
                   OASIS {isEn ? "Real-time Simulation Terminal" : "实时仿真终端"}
@@ -603,35 +603,35 @@ export function GlobalDashboard() {
               
               <div 
                 ref={logsContainerRef}
-                className="flex-1 bg-black/90 p-2.5 overflow-y-auto text-[10px] font-mono leading-relaxed space-y-2 border-b border-border/40"
+                className="flex-1 bg-slate-950/5 dark:bg-black/90 p-2.5 overflow-y-auto text-[10px] font-mono leading-relaxed space-y-2 border-b border-border/40"
               >
                 {logs.map((log, idx) => {
-                  let color = "text-slate-400";
-                  if (log.type === "action") color = "text-[#00e5ff]";
-                  if (log.type === "success") color = "text-[#ff3366]";
-                  if (log.type === "warning") color = "text-amber-500";
+                  let color = "text-slate-700 dark:text-slate-400";
+                  if (log.type === "action") color = "text-cyan-600 dark:text-[#00e5ff]";
+                  if (log.type === "success") color = "text-rose-600 dark:text-[#ff3366]";
+                  if (log.type === "warning") color = "text-amber-600 dark:text-amber-500";
                   return (
-                    <div key={idx} className="border-l-2 border-[#1f1f2e] pl-1.5">
-                      <div className="flex justify-between text-[8px] text-slate-650 mb-0.5">
+                    <div key={idx} className="border-l-2 border-slate-300 dark:border-[#1f1f2e] pl-1.5">
+                      <div className="flex justify-between text-[8px] text-slate-500 dark:text-slate-450 mb-0.5">
                         <span>[{log.time}] {log.sender}</span>
                       </div>
-                      <p className={`${color} break-all font-mono`}>{log.message}</p>
+                      <p className={`${color} break-all font-mono font-medium`}>{log.message}</p>
                     </div>
                   );
                 })}
               </div>
 
-              <div className="grid grid-cols-3 text-[9px] text-slate-450 bg-[#12121e] p-2 text-center border-t border-[#1a1a2e] shrink-0">
-                <div>节点: <span className="text-white font-bold">341</span></div>
-                <div>关系链: <span className="text-white font-bold">1,766</span></div>
-                <div>智能体: <span className="text-[#00e5ff] font-bold">55</span></div>
+              <div className="grid grid-cols-3 text-[9px] text-slate-600 dark:text-slate-450 bg-slate-100 dark:bg-[#12121e] p-2 text-center border-t border-slate-200 dark:border-[#1a1a2e] shrink-0">
+                <div>节点: <span className="text-slate-900 dark:text-white font-bold">341</span></div>
+                <div>关系链: <span className="text-slate-900 dark:text-white font-bold">1,766</span></div>
+                <div>智能体: <span className="text-cyan-600 dark:text-[#00e5ff] font-bold">55</span></div>
               </div>
             </div>
           )}
 
           {/* ReACT Thinking Timeline Panel */}
           {enabledWidgets.reactTimeline && isWidgetAllowed("reactTimeline") && (
-            <div key="reactTimeline" className="bg-[#10101a]/80 rounded overflow-hidden shadow-sm dark:shadow-none">
+            <div key="reactTimeline" className="border border-border/80 bg-card/90 backdrop-blur-md rounded-xl overflow-hidden shadow-sm transition-all duration-300 hover:shadow-lg hover:shadow-rose-500/5">
               {!isLayoutLocked && <div className="drag-handle h-4 bg-slate-200 dark:bg-[#1a1a2e] cursor-move flex items-center justify-center"><Grid className="h-3 w-3 text-slate-400" /></div>}
               <ReActTimeline />
             </div>
