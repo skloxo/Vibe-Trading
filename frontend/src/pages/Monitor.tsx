@@ -324,6 +324,144 @@ export function Monitor() {
         </div>
       </div>
 
+      {/* Background Services & Data Status Section */}
+      <div className="space-y-3">
+        <h2 className="text-base font-semibold tracking-tight text-foreground">
+          {isZh ? "数据对账与后台服务监控" : "Data Reconciliation & Background Services"}
+        </h2>
+        <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-4">
+          {/* Data Maintenance Card */}
+          <div className="rounded-lg border bg-card p-5 shadow-sm space-y-3 flex flex-col justify-between relative overflow-hidden group">
+            {/* Ambient decorative effect */}
+            <div className="absolute top-0 right-0 w-24 h-24 bg-primary/5 rounded-full blur-xl pointer-events-none group-hover:bg-primary/10 transition-all duration-500" />
+            
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Database className="h-4.5 w-4.5 text-primary" />
+                <span className="text-sm font-semibold text-foreground">
+                  {isZh ? "收盘数据维护与自愈" : "Data Sync & Self-Healing"}
+                </span>
+              </div>
+              <span className={`inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-bold tracking-wide uppercase transition ${
+                stats?.services?.data_maintenance?.running 
+                  ? "bg-emerald-500/10 text-emerald-500 border border-emerald-500/20" 
+                  : "bg-destructive/10 text-destructive border border-destructive/20"
+              }`}>
+                {stats?.services?.data_maintenance?.running ? (isZh ? "运行中" : "RUNNING") : (isZh ? "已停止" : "STOPPED")}
+              </span>
+            </div>
+            
+            <div className="space-y-1.5 text-xs text-muted-foreground pt-1">
+              <div className="flex justify-between">
+                <span>{isZh ? "历史对账区间" : "Historical Range"}:</span>
+                <span className="font-mono text-foreground font-medium">{stats?.services?.data_maintenance?.historical_range || "N/A"}</span>
+              </div>
+              <div className="flex justify-between items-center">
+                <span>{isZh ? "今日同步状态" : "Today's Status"}:</span>
+                <span className={`font-semibold ${
+                  stats?.services?.data_maintenance?.today_status === "已完成"
+                    ? "text-emerald-500"
+                    : stats?.services?.data_maintenance?.today_status === "同步延迟/失败"
+                    ? "text-destructive font-bold animate-pulse"
+                    : "text-amber-500"
+                }`}>
+                  {stats?.services?.data_maintenance?.today_status || (isZh ? "等待中" : "Pending")}
+                </span>
+              </div>
+              <div className="flex justify-between">
+                <span>{isZh ? "已监控股票数" : "Monitored Stocks"}:</span>
+                <span className="text-foreground font-medium">{stats?.services?.data_maintenance?.total_stocks || 0} {isZh ? "只" : "stocks"}</span>
+              </div>
+              <div className="flex justify-between">
+                <span>{isZh ? "公共数据库大小" : "Market DB Size"}:</span>
+                <span className="text-foreground font-medium">{stats?.services?.data_maintenance?.db_size_mb || 0} MB</span>
+              </div>
+            </div>
+          </div>
+
+          {/* THS Watchlist Sync Card */}
+          <div className="rounded-lg border bg-card p-5 shadow-sm space-y-3 flex flex-col justify-between relative overflow-hidden group">
+            <div className="absolute top-0 right-0 w-24 h-24 bg-green-500/5 rounded-full blur-xl pointer-events-none group-hover:bg-green-500/10 transition-all duration-500" />
+            
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Wifi className="h-4.5 w-4.5 text-green-500" />
+                <span className="text-sm font-semibold text-foreground">
+                  {isZh ? "同花顺自选双向同步" : "THS Watchlist Sync"}
+                </span>
+              </div>
+              <span className={`inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-bold tracking-wide uppercase transition ${
+                stats?.services?.ths_sync?.running 
+                  ? "bg-emerald-500/10 text-emerald-500 border border-emerald-500/20" 
+                  : "bg-destructive/10 text-destructive border border-destructive/20"
+              }`}>
+                {stats?.services?.ths_sync?.running ? (isZh ? "运行中" : "RUNNING") : (isZh ? "已停止" : "STOPPED")}
+              </span>
+            </div>
+            
+            <p className="text-xs text-muted-foreground leading-relaxed pt-1">
+              {isZh 
+                ? "基于 Web Cookie 自动检测并多租户同步同花顺自选股，若未配置凭据将自动降级为本地隔离数据库自选模式。" 
+                : "Bi-directional background synchronization of portfolios with Tonghuashun over secure cookies."}
+            </p>
+          </div>
+
+          {/* Watchlist Real-time Alert Card */}
+          <div className="rounded-lg border bg-card p-5 shadow-sm space-y-3 flex flex-col justify-between relative overflow-hidden group">
+            <div className="absolute top-0 right-0 w-24 h-24 bg-purple-500/5 rounded-full blur-xl pointer-events-none group-hover:bg-purple-500/10 transition-all duration-500" />
+            
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Activity className="h-4.5 w-4.5 text-purple-500" />
+                <span className="text-sm font-semibold text-foreground">
+                  {isZh ? "自选股秒级高频预警" : "Watchlist High-Freq Alert"}
+                </span>
+              </div>
+              <span className={`inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-bold tracking-wide uppercase transition ${
+                stats?.services?.watchlist_monitor?.running 
+                  ? "bg-emerald-500/10 text-emerald-500 border border-emerald-500/20" 
+                  : "bg-destructive/10 text-destructive border border-destructive/20"
+              }`}>
+                {stats?.services?.watchlist_monitor?.running ? (isZh ? "运行中" : "RUNNING") : (isZh ? "已停止" : "STOPPED")}
+              </span>
+            </div>
+            
+            <p className="text-xs text-muted-foreground leading-relaxed pt-1">
+              {isZh 
+                ? "在交易时间段内以秒级频率高频轮询自选股的价格、涨跌幅、及异动状态，并在触发冷却规则后向通道推送通知。" 
+                : "High-frequency real-time stock price and alerts dispatcher during official trading hours."}
+            </p>
+          </div>
+
+          {/* Xueqiu Portfolio Watcher Card */}
+          <div className="rounded-lg border bg-card p-5 shadow-sm space-y-3 flex flex-col justify-between relative overflow-hidden group">
+            <div className="absolute top-0 right-0 w-24 h-24 bg-orange-500/5 rounded-full blur-xl pointer-events-none group-hover:bg-orange-500/10 transition-all duration-500" />
+            
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Server className="h-4.5 w-4.5 text-orange-500" />
+                <span className="text-sm font-semibold text-foreground">
+                  {isZh ? "雪球大V组合盯哨" : "Xueqiu Portfolio Watcher"}
+                </span>
+              </div>
+              <span className={`inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-bold tracking-wide uppercase transition ${
+                stats?.services?.xueqiu_watcher?.running 
+                  ? "bg-emerald-500/10 text-emerald-500 border border-emerald-500/20" 
+                  : "bg-destructive/10 text-destructive border border-destructive/20"
+              }`}>
+                {stats?.services?.xueqiu_watcher?.running ? (isZh ? "运行中" : "RUNNING") : (isZh ? "已停止" : "STOPPED")}
+              </span>
+            </div>
+            
+            <p className="text-xs text-muted-foreground leading-relaxed pt-1">
+              {isZh 
+                ? "长连接或短周期高频监控配置中指定的雪球投资组合与大 V 自选股列表，在其发生调仓或调入调出时即时收集。" 
+                : "Real-time crawler and notifier for combinations rebalancing and target portfolio actions."}
+            </p>
+          </div>
+        </div>
+      </div>
+
       {/* Main Content Layout */}
       <div className="grid gap-6 lg:grid-cols-[minmax(0,1.2fr)_minmax(320px,0.8fr)]">
         {/* Left Column: Tenant API Keys Management */}

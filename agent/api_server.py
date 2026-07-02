@@ -345,6 +345,7 @@ class MonitorStatsResponse(BaseModel):
     total_sessions: int
     total_runs: int
     memory_usage_mb: float
+    services: Dict[str, Any] = {}
 
 
 class LogEntry(BaseModel):
@@ -1162,6 +1163,14 @@ async def _run_startup_preflight() -> None:
     except Exception as e:
         logger.error("[ThsSync] 启动同花顺同步服务失败: %s", e)
 
+    # Initialize and start WatchlistMonitorService
+    try:
+        from src.market.watchlist_monitor import WatchlistMonitorService
+        WatchlistMonitorService().start()
+        logger.info("[WatchlistMonitor] 自选股实时预警服务已在系统启动时载入。")
+    except Exception as e:
+        logger.error("[WatchlistMonitor] 启动自选股实时预警服务失败: %s", e)
+
 
 @app.on_event("shutdown")
 async def _stop_scheduled_research_on_shutdown() -> None:
@@ -1200,6 +1209,14 @@ async def _stop_scheduled_research_on_shutdown() -> None:
         logger.info("[ThsSync] 同花顺同步服务已停止。")
     except Exception as e:
         logger.error("[ThsSync] 停止同花顺同步服务失败: %s", e)
+
+    # Stop WatchlistMonitorService
+    try:
+        from src.market.watchlist_monitor import WatchlistMonitorService
+        await WatchlistMonitorService().stop()
+        logger.info("[WatchlistMonitor] 自选股实时预警服务已停止。")
+    except Exception as e:
+        logger.error("[WatchlistMonitor] 停止自选股实时预警服务失败: %s", e)
 
     # Stop SharedMemoryHub and TdxGateway connection pool
     try:
@@ -2758,12 +2775,133 @@ async def get_monitor_stats():
                             break
     except Exception:
         pass
+
+    # 5. Service status info
+    services_info = {}
+    
+    # 5.1 Data Maintenance
+    try:
+        from src.market.close_maintenance import CloseDataMaintenanceService
+        from src.config.paths import get_market_db_path
+        import sqlite3
+        
+        db_path = get_market_db_path()
+        db_size_mb = 0.0
+        if db_path.exists():
+            db_size_mb = db_path.stat().st_size / (1024.0 * 1024.0)
+            
+        historical_range = "未开始"
+        today_status = "待维护"
+        total_stocks = 0
+        
+        if db_path.exists():
+            try:
+                conn = sqlite3.connect(db_path)
+                cur = conn.cursor()
+                # Total stocks
+                cur.execute("SELECT COUNT(*) FROM stock_meta")
+                total_stocks = cur.fetchone()[0]
+                
+                # Date range
+                cur.execute("SELECT MIN(trade_date), MAX(trade_date) FROM kline_daily")
+                min_d, max_d = cur.fetchone()
+                if min_d and max_d:
+                    historical_range = f"{min_d} ~ {max_d}"
+                    
+                    # Today status
+                    # Find latest open trading day in calendar <= today
+                    from datetime import date
+                    today_str = str(date.today())
+                    cur.execute("SELECT MAX(date) FROM trade_calendar WHERE is_open = 1 AND date <= ?", (today_str,))
+                    latest_trading_day = cur.fetchone()[0]
+                    if latest_trading_day:
+                        if max_d >= latest_trading_day:
+                            today_status = "已完成"
+                        else:
+                            from datetime import datetime, time
+                            now = datetime.now()
+                            cur.execute("SELECT is_open FROM trade_calendar WHERE date = ?", (today_str,))
+                            row = cur.fetchone()
+                            is_today_open = row[0] if row else 0
+                            
+                            if is_today_open and now.time() >= time(15, 35):
+                                today_status = "同步延迟/失败"
+                            else:
+                                today_status = "等待下午收盘"
+                    else:
+                        today_status = "未同步历法"
+                conn.close()
+            except Exception:
+                pass
+                
+        maintenance_running = False
+        try:
+            maintenance_running = CloseDataMaintenanceService()._running
+        except Exception:
+            pass
+            
+        services_info["data_maintenance"] = {
+            "name": "收盘行情同步与 Gap Healing",
+            "running": maintenance_running,
+            "historical_range": historical_range,
+            "today_status": today_status,
+            "total_stocks": total_stocks,
+            "db_size_mb": round(db_size_mb, 2)
+        }
+    except Exception:
+        pass
+
+    # 5.2 THS Watchlist Sync
+    try:
+        from src.market.ths_sync import ThsSyncService
+        ths_running = False
+        try:
+            ths_running = ThsSyncService()._running
+        except Exception:
+            pass
+        services_info["ths_sync"] = {
+            "name": "同花顺自选股双向同步",
+            "running": ths_running
+        }
+    except Exception:
+        pass
+
+    # 5.3 Watchlist Monitor
+    try:
+        from src.market.watchlist_monitor import WatchlistMonitorService
+        monitor_running = False
+        try:
+            monitor_running = WatchlistMonitorService()._running
+        except Exception:
+            pass
+        services_info["watchlist_monitor"] = {
+            "name": "自选股秒级高频预警",
+            "running": monitor_running
+        }
+    except Exception:
+        pass
+
+    # 5.4 Xueqiu Combination Watcher
+    try:
+        xueqiu_running = False
+        try:
+            watcher = _get_xueqiu_watcher()
+            xueqiu_running = watcher is not None and watcher._task is not None and not watcher._task.done()
+        except Exception:
+            pass
+        services_info["xueqiu_watcher"] = {
+            "name": "雪球大V组合盯哨",
+            "running": xueqiu_running
+        }
+    except Exception:
+        pass
         
     return MonitorStatsResponse(
         active_tenants=active_tenants,
         total_sessions=total_sessions,
         total_runs=total_runs,
         memory_usage_mb=memory_usage_mb,
+        services=services_info,
     )
 
 
