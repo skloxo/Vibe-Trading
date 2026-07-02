@@ -2803,7 +2803,7 @@ async def get_monitor_stats():
                 total_stocks = cur.fetchone()[0]
                 
                 # Date range
-                cur.execute("SELECT MIN(trade_date), MAX(trade_date) FROM kline_daily")
+                cur.execute("SELECT MIN(date), MAX(date) FROM kline_daily")
                 min_d, max_d = cur.fetchone()
                 if min_d and max_d:
                     historical_range = f"{min_d} ~ {max_d}"
