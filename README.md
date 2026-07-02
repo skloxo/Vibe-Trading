@@ -37,6 +37,8 @@
   - **首屏 i18n 中文默认拦截**：在 i18n 配置中增加首次访问劫持。若用户为首次打开（localStorage 内没有 i18n 语言项），则主动将其拦截并强制预设为 `zh-CN`，确保首屏加载时 100% 呈现中文看板大屏卡片，同时保留对右上角手动语言切换在后续访问中被记住的支持。
   - ⚠️ **独立正名**：项目正式从上游 Fork 独立，版本号切换至 `vx.y.z` 标准语义化版本体系（历史版本对照：`v0.1.10.cnx.1.x` → `v1.x.0`）。
 
+<details>
+<summary>更早的更新</summary>
 
 - **2026-07-01** 🚀 **v1.6.0 — 行情网关自愈预检、多参考仓库对账看板与 GitHub CLI SOP 版本发布**：
   - **行情网关启动自愈预检**：新增 `_check_mootdx_and_heal` 预检机制。服务启动时自动检查 `mootdx` 缓存配置文件完整性，秒级捕获并清除 `BESTIP` 损坏导致的 `ValueError` 异常，自动重新测速生成最佳 HQ 主站配置，彻底根治公网环境下的 A股 实时数据查询失败。
@@ -71,9 +73,6 @@
   - **安全与跨域加固（CORS）**：更新 CORS 环回检测，使配置的 `API_ALLOWED_HOSTS` 公网/局域网可信 IP 允许执行不安全的 POST/PUT/DELETE 请求，解决异地登录时修改设置报 `Cross-site request denied` 拦截问题。
   - **Docker 容器向前兼容**：添加了 `/home/vibe/.tide` -> `/home/vibe/.tide` 的软链接守护，确保生产环境存量用户无缝升级，旧有历史数据及会话记录百分百兼容。
   - **统一的 GitHub CLI 跨仓库贡献 SOP**：明确在 `AGENTS.md` 中固化了向官方上游贡献通用代码的 `gh pr create` 命令行流程，确保 CNX 本地隔离代码不会污染上游 Pull Request。
-
-<details>
-<summary>更早的更新</summary>
 
 - **2026-06-23** 🛡️ **本地 API CSRF 加固**：恶意网页不再能对环回（loopback）API 发起不安全的跨站请求（POST/PUT/DELETE）——CORS 只挡响应读取、挡不住副作用，因此环回 dev-mode 信任现在会在放行**之前**先对不安全方法应用既有的跨站防护。安全方法与本地 CLI / 非浏览器上传不受影响（[#293](https://github.com/HKUDS/TideTrading/pull/293)，感谢 @Hinotoi-agent）。
 - **2026-06-22** 🔧 **Live 授权 OAuth 修复 + Alpha Zoo 标题修复**：`connector authorize` 现在能在长达数分钟的券商登录期间保持 OAuth 握手不断开（可通过 `VIBE_LIVE_AUTHORIZE_TIMEOUT_SECONDS` 调整），且重试时不再另起一个抢占式回调服务器，token 终于能正确保存（[#281](https://github.com/HKUDS/TideTrading/pull/281)，关闭 [#259](https://github.com/HKUDS/TideTrading/issues/259)，感谢 @Robin1987China）。Alpha Zoo 页面不再把 alpha 数量渲染两次（[#287](https://github.com/HKUDS/TideTrading/pull/287)，关闭 [#286](https://github.com/HKUDS/TideTrading/issues/286)，感谢 @digger-yu）。定时研究也补上了端到端使用文档（[#288](https://github.com/HKUDS/TideTrading/pull/288)）。
