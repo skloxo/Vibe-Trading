@@ -113,20 +113,20 @@ export function Home() {
             <span>{isZh ? "设计哲学" : "Orchestration Philosophy"}</span>
           </div>
           <h2 className="text-xl md:text-2xl font-bold tracking-tight">
-            {isZh ? "大模型语义编排机制" : "LLM Semantic Orchestration"}
+            {isZh ? "大模型语义编排机制与设计哲学" : "LLM Orchestration & Design Philosophy"}
           </h2>
           <p className="text-xs md:text-sm text-muted-foreground leading-relaxed">
             {isZh ? (
               <>
-                平台秉承<strong>「确定性优先 (Deterministic First)」</strong>原则。凡是可以通过确定性算法（如选股脚本、数据库查询或规则引擎）计算的部分，均直接执行流程化代码，绝不依赖大模型，以避免<strong>高昂 Token 消耗、网络延迟和输出幻觉</strong>。
+                平台秉承<strong>「确定性优先 (Deterministic First)」</strong>原则，并深度贯彻<strong>「第一性原理 (First Principles)」</strong>与<strong>「奥卡姆剃刀 (Occam's Razor)」</strong>。凡是可以通过确定性算法（如选股、数据库查询等）解决的部分，均执行流程化代码，绝不滥用大模型。
                 <br /><br />
-                大模型的角色被精确定位为<strong>「语义路由器与原子服务编排器」</strong>：理解用户自然语言的意图，智能编排底层的行情网关、因子库和交易通道等原子工具，并在计算完成后进行高质量的金融研报整理输出。
+                我们主张将卡片设计极致简化与透明，根治源头数据库，大模型仅精确定位为<strong>「语义路由器与服务编排器」</strong>，将这些客观数据串联并流式呈递出决策思考链路。
               </>
             ) : (
               <>
-                Vibe-Trading operates on a <strong>"Deterministic First"</strong> approach. We run deterministic Python scripts, indicators, or database queries directly, avoiding raw LLM computation for things that require exact calculation, eliminating <strong>unnecessary Token costs, latencies, and hallucinations</strong>.
+                Vibe-Trading operates on a <strong>"Deterministic First"</strong> approach, integrated with <strong>"First Principles"</strong> and <strong>"Occam's Razor"</strong>. We run deterministic scripts or queries directly, keeping the frontend lightweight and database sanitized.
                 <br /><br />
-                LLMs act as <strong>semantic routers & orchestrators</strong>: translating natural language intent, invoking atomic API tools (quotation gateways, stock factors, broker actions), and generating final formatted reports.
+                LLMs act strictly as <strong>semantic routers & orchestrators</strong>: plan actions, invoke atomic tools (quotation gateways, stock factors), and format reports.
               </>
             )}
           </p>
