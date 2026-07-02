@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect } from "react";
 import { MessageSquare, Send } from "lucide-react";
 import { api } from "../../lib/api";
+import { useTranslation } from "react-i18next";
 
 interface Message {
   sender: string;
@@ -19,6 +20,8 @@ export function AgentChatConsole() {
   const [selectedAgent, setSelectedAgent] = useState("yuzi");
   const [isLoading, setIsLoading] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const { i18n } = useTranslation();
+  const isEn = i18n.language?.startsWith("en");
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -60,7 +63,7 @@ export function AgentChatConsole() {
       <div className="flex justify-between items-center border-b border-slate-200 dark:border-[#222233] pb-1.5 shrink-0">
         <span className="text-xs font-bold text-slate-700 dark:text-slate-300 flex items-center gap-1.5">
           <MessageSquare className="h-3.5 w-3.5 text-[#00abc0] dark:text-[#00e5ff]" />
-          智能体交互质询终端 (CHAT CONSOLE)
+          {isEn ? "Agent Chat Console" : "智能体交互质询终端"}
         </span>
         <select
           value={selectedAgent}

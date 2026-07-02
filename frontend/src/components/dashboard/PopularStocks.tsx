@@ -1,3 +1,5 @@
+import { useTranslation } from "react-i18next";
+
 interface PopularStockItem {
   rank: number;
   code: string;
@@ -12,6 +14,8 @@ interface PopularStocksProps {
 }
 
 export function PopularStocks({ data }: PopularStocksProps) {
+  const { i18n } = useTranslation();
+  const isEn = i18n.language?.startsWith("en");
   const defaultPopularList: PopularStockItem[] = [
     { rank: 1, code: "301550", name: "万丰奥威", heatValue: 9980, sentimentTag: "低空龙头/封单猛", change: 10.00 },
     { rank: 2, code: "300750", name: "宁德时代", heatValue: 8850, sentimentTag: "北向大买/出货压力减", change: 20.00 },
@@ -42,7 +46,7 @@ export function PopularStocks({ data }: PopularStocksProps) {
   return (
     <div className="border border-slate-200 dark:border-[#222233] bg-white dark:bg-[#10101a]/80 p-3 flex flex-col gap-2 h-full rounded shadow-sm dark:shadow-none">
       <div className="flex justify-between items-center border-b border-slate-200 dark:border-[#222233] pb-1.5">
-        <span className="text-xs font-bold text-slate-700 dark:text-slate-300">🔥 社交媒体热门人气股 (POPULAR STOCKS)</span>
+        <span className="text-xs font-bold text-slate-700 dark:text-slate-300">🔥 {isEn ? "Popular Stocks" : "社交媒体热门人气股"}</span>
         <span className="text-[9px] text-rose-600 dark:text-[#ff3366] font-bold">XUEQIU ACTIVE</span>
       </div>
 

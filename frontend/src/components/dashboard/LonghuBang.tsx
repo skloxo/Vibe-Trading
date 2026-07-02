@@ -1,3 +1,5 @@
+import { useTranslation } from "react-i18next";
+
 interface LonghuItem {
   code: string;
   name: string;
@@ -12,6 +14,8 @@ interface LonghuBangProps {
 }
 
 export function LonghuBang({ data }: LonghuBangProps) {
+  const { i18n } = useTranslation();
+  const isEn = i18n.language?.startsWith("en");
   const defaultItems: LonghuItem[] = [
     { code: "301550", name: "万丰奥威", reason: "三日涨幅达20%", netAmount: 18500, instBuyCount: 2, yuziSeat: "中信证券西安朱雀大街" },
     { code: "601138", name: "工业富联", reason: "日涨幅偏离值达7%", netAmount: 12400, instBuyCount: 3, yuziSeat: "国泰君安上海分公司" },
@@ -24,8 +28,8 @@ export function LonghuBang({ data }: LonghuBangProps) {
   return (
     <div className="border border-slate-200 dark:border-[#222233] bg-white dark:bg-[#10101a]/80 p-3 flex flex-col gap-2 h-full rounded shadow-sm dark:shadow-none">
       <div className="flex justify-between items-center border-b border-slate-200 dark:border-[#222233] pb-1.5">
-        <span className="text-xs font-bold text-slate-700 dark:text-slate-300">📋 龙虎榜席位分析 (DRAGON-TIGER LIST)</span>
-        <span className="text-[9px] text-rose-600 dark:text-[#ff3366] font-bold">每日盘后更新</span>
+        <span className="text-xs font-bold text-slate-700 dark:text-slate-300">📋 {isEn ? "Dragon-Tiger List" : "龙虎榜席位分析"}</span>
+        <span className="text-[9px] text-rose-600 dark:text-[#ff3366] font-bold">{isEn ? "POST-MARKET" : "每日盘后更新"}</span>
       </div>
 
       <div className="space-y-3 flex-1 overflow-auto">

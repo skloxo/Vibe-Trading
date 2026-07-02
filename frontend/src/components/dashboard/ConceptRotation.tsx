@@ -1,3 +1,5 @@
+import { useTranslation } from "react-i18next";
+
 interface ConceptItem {
   name: string;
   leadStock: string;
@@ -12,6 +14,8 @@ interface ConceptRotationProps {
 }
 
 export function ConceptRotation({ data }: ConceptRotationProps) {
+  const { i18n } = useTranslation();
+  const isEn = i18n.language?.startsWith("en");
   const defaultConcepts: ConceptItem[] = [
     { name: "低空经济", leadStock: "万丰奥威", leadStockCode: "301550", heat: 98, sentiment: "bull", change: 5.62 },
     { name: "华为智驾", leadStock: "赛力斯", leadStockCode: "601127", heat: 92, sentiment: "bull", change: 3.18 },
@@ -47,7 +51,7 @@ export function ConceptRotation({ data }: ConceptRotationProps) {
   return (
     <div className="border border-slate-200 dark:border-[#222233] bg-white dark:bg-[#10101a]/80 p-3 flex flex-col gap-2 h-full rounded shadow-sm dark:shadow-none">
       <div className="flex justify-between items-center border-b border-slate-200 dark:border-[#222233] pb-1.5">
-        <span className="text-xs font-bold text-slate-700 dark:text-slate-300">📡 题材板块热度轮动 (CONCEPT ROTATION)</span>
+        <span className="text-xs font-bold text-slate-700 dark:text-slate-300">📡 {isEn ? "Concept Rotation" : "题材板块热度轮动"}</span>
         <span className="text-[9px] text-rose-600 dark:text-[#ff3366] font-bold">24H HEAT</span>
       </div>
 

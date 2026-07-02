@@ -1,4 +1,5 @@
 import { Activity } from "lucide-react";
+import { useTranslation } from "react-i18next";
 
 interface MarketSentimentProps {
   score?: number;
@@ -8,12 +9,14 @@ interface MarketSentimentProps {
 export function MarketSentiment({ score = 82, description = "GREED (极度贪婪)" }: MarketSentimentProps) {
   const displayScore = score;
   const isUp = displayScore >= 50;
+  const { i18n } = useTranslation();
+  const isEn = i18n.language?.startsWith("en");
 
   return (
     <div className="border border-slate-200 dark:border-[#222233] bg-white dark:bg-[#10101a]/80 p-3 flex flex-col gap-2 relative overflow-hidden h-full rounded shadow-sm dark:shadow-none">
       <div className="absolute top-0 right-0 w-24 h-24 bg-[#ff3366]/5 rounded-full blur-xl pointer-events-none" />
       <div className="flex justify-between items-center text-[10px] text-slate-500 dark:text-slate-400">
-        <span>A股大盘情绪温度 (SENTIMENT TEMP)</span>
+        <span>{isEn ? "A-Share Sentiment Gauge" : "A股大盘情绪温度"}</span>
         <Activity className={`h-3.5 w-3.5 ${isUp ? "text-rose-600 dark:text-[#ff3366]" : "text-emerald-605 dark:text-[#00ff88]"}`} />
       </div>
       <div className="flex items-baseline gap-2">

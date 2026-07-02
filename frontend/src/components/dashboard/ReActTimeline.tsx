@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { Cpu, Terminal, Eye, AlertCircle } from "lucide-react";
 import { api } from "../../lib/api";
+import { useTranslation } from "react-i18next";
 
 interface TimelineStep {
   id: number | string;
@@ -39,6 +40,8 @@ const DEFAULT_STEPS: TimelineStep[] = [
 
 export function ReActTimeline() {
   const [steps, setSteps] = useState<TimelineStep[]>([]);
+  const { i18n } = useTranslation();
+  const isEn = i18n.language?.startsWith("en");
 
   useEffect(() => {
     let eventSource: EventSource | null = null;
@@ -196,7 +199,7 @@ export function ReActTimeline() {
     <div className="border border-slate-200 dark:border-[#222233] bg-white dark:bg-[#10101a]/80 p-3 flex flex-col gap-2 rounded shrink-0 shadow-sm dark:shadow-none">
       <span className="text-xs font-bold text-slate-700 dark:text-slate-300 border-b border-slate-200 dark:border-[#222233] pb-1.5 flex items-center gap-1.5">
         <Cpu className="h-3.5 w-3.5 text-rose-600 dark:text-[#ff3366]" />
-        AI 研报 ReACT 思考时间轴 (DECISIONS)
+        AI {isEn ? "ReACT Decision Timeline" : "研报 ReACT 思考时间轴"}
       </span>
       
       <div className="text-[10px] space-y-4 relative pl-5 border-l border-slate-200 dark:border-[#222233]/80 py-1.5 ml-2">

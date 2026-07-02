@@ -1,3 +1,5 @@
+import { useTranslation } from "react-i18next";
+
 interface SectorFlow {
   name: string;
   flow: number; // 资金流（亿）
@@ -10,6 +12,8 @@ interface FundFlowsProps {
 }
 
 export function FundFlows({ data }: FundFlowsProps) {
+  const { i18n } = useTranslation();
+  const isEn = i18n.language?.startsWith("en");
   const defaultSectors: SectorFlow[] = [
     { name: "低空经济", flow: 38.4, change: 4.82, sparkline: [10, 15, 8, 20, 25, 45, 60] },
     { name: "AI算力", flow: 29.1, change: 3.15, sparkline: [12, 10, 18, 14, 22, 30, 42] },
@@ -22,7 +26,7 @@ export function FundFlows({ data }: FundFlowsProps) {
 
   return (
     <div className="border border-slate-200 dark:border-[#222233] bg-white dark:bg-[#10101a]/80 p-3 flex flex-col gap-2 h-full rounded shadow-sm dark:shadow-none">
-      <span className="text-xs font-bold text-slate-700 dark:text-slate-300 border-b border-slate-200 dark:border-[#222233] pb-1.5">📊 热门板块资金净流入 (SECTORS)</span>
+      <span className="text-xs font-bold text-slate-700 dark:text-slate-300 border-b border-slate-200 dark:border-[#222233] pb-1.5">📊 {isEn ? "Sector Fund Flows" : "热门板块资金净流入"}</span>
       <div className="space-y-2.5 flex-1 overflow-auto">
         {sectors.map((sec) => {
           const isUp = sec.flow >= 0;
