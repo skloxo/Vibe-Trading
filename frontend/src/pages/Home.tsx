@@ -61,7 +61,7 @@ export function Home() {
         
         <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full border border-primary/20 bg-primary/5 text-primary text-xs font-semibold">
           <Activity className="h-3 w-3 animate-pulse" />
-          <span>v0.1.10.cnx.1.7.0 Stable</span>
+          <span>v1.7.1 Stable</span>
         </div>
 
         <h1 className="text-4xl md:text-5xl font-extrabold tracking-tight bg-gradient-to-r from-primary via-orange-500 to-amber-500 bg-clip-text text-transparent">
@@ -340,7 +340,7 @@ export function Home() {
               <div className="relative pl-4 border-l-2 border-primary/20">
                 <span className="absolute -left-1.5 top-1.5 h-3 w-3 rounded-full bg-primary border-2 border-background animate-pulse" />
                 <h4 className="text-xs font-semibold flex items-center gap-1.5">
-                  v0.1.10.cnx.1.7.0
+                  v1.7.1
                   <span className="text-[9px] px-1.5 py-0.5 rounded bg-emerald-500/10 text-emerald-500 font-normal">{isZh ? "已上线" : "Stable"}</span>
                 </h4>
                 <p className="text-[10px] text-muted-foreground mt-1">
@@ -349,49 +349,49 @@ export function Home() {
               </div>
               <div className="relative pl-4 border-l-2 border-primary/20">
                 <span className="absolute -left-1.5 top-1.5 h-3 w-3 rounded-full bg-primary/40 border-2 border-background" />
-                <h4 className="text-xs font-semibold text-muted-foreground">v0.1.10.cnx.1.6</h4>
+                <h4 className="text-xs font-semibold text-muted-foreground">v1.6.0</h4>
                 <p className="text-[10px] text-muted-foreground mt-1">
                   {isZh ? "行情网关启动自愈预检（秒拔 mootdx BESTIP 损坏），Git 远程多参考仓库动态追踪大看板与每日增量对账日志，跨仓库 CLI 贡献 SOP 确立。" : "Gateway self-healing preflight check, dynamic reference repositories status board with daily logs, and GitHub CLI contribution SOP."}
                 </p>
               </div>
               <div className="relative pl-4 border-l-2 border-primary/20">
                 <span className="absolute -left-1.5 top-1.5 h-3 w-3 rounded-full bg-primary/40 border-2 border-background" />
-                <h4 className="text-xs font-semibold text-muted-foreground">v0.1.10.cnx.1.5</h4>
+                <h4 className="text-xs font-semibold text-muted-foreground">v1.5.0</h4>
                 <p className="text-[10px] text-muted-foreground mt-1">
                   {isZh ? "同花顺多租户双向自动/手动同步（交易日5分钟/其余30分钟自适应），秒级自选股实时监控，收盘数据维护与 Gap Healing 对账自愈。" : "Multi-tenant bi-directional Tonghuashun watchlist sync with smart scheduling, close maintenance with self-healing, and real-time alerts."}
                 </p>
               </div>
               <div className="relative pl-4 border-l-2 border-primary/20">
                 <span className="absolute -left-1.5 top-1.5 h-3 w-3 rounded-full bg-primary/40 border-2 border-background" />
-                <h4 className="text-xs font-semibold text-muted-foreground">v0.1.10.cnx.1.4</h4>
+                <h4 className="text-xs font-semibold text-muted-foreground">v1.4.0</h4>
                 <p className="text-[10px] text-muted-foreground mt-1">
                   {isZh ? "平台级公用数据共享缓存层 (SharedMemoryHub)，开闭盘自适应调频，防御高频请求防封 IP。" : "Platform-level shared data hub, market hour adaptive polling, and A-share quote rate-limiting."}
                 </p>
               </div>
               <div className="relative pl-4 border-l-2 border-primary/20">
                 <span className="absolute -left-1.5 top-1.5 h-3 w-3 rounded-full bg-primary/40 border-2 border-background" />
-                <h4 className="text-xs font-semibold text-muted-foreground">v0.1.10.cnx.1.3</h4>
+                <h4 className="text-xs font-semibold text-muted-foreground">v1.3.0</h4>
                 <p className="text-[10px] text-muted-foreground mt-1">
                   {isZh ? "平台指引与向导优化、侧边栏自适应与输入框适配、服务看板合并、运行报告鉴权加固。" : "Platform guide & onboarding optimization, responsive drawer & composer layout, monitor merging, and run detail auth fortification."}
                 </p>
               </div>
               <div className="relative pl-4 border-l-2 border-primary/20">
                 <span className="absolute -left-1.5 top-1.5 h-3 w-3 rounded-full bg-primary/60 border-2 border-background" />
-                <h4 className="text-xs font-semibold">v0.1.10.cnx.1.2</h4>
+                <h4 className="text-xs font-semibold">v1.2.0</h4>
                 <p className="text-[10px] text-muted-foreground mt-1">
                   {isZh ? "正式先锋迭代，上线一键平滑热升级系统与重启服务功能，布局移动端基础框架。" : "Implemented smooth online upgrades, live restarts, and foundational mobile Layout."}
                 </p>
               </div>
               <div className="relative pl-4 border-l-2 border-primary/20">
                 <span className="absolute -left-1.5 top-1.5 h-3 w-3 rounded-full bg-primary/60 border-2 border-background" />
-                <h4 className="text-xs font-semibold">v0.1.10.cnx.1.1</h4>
+                <h4 className="text-xs font-semibold">v1.1.0</h4>
                 <p className="text-[10px] text-muted-foreground mt-1">
                   {isZh ? "引入 pytdx 高频行情基建，支持低延迟心跳保活与 A 股秒级 5 档行情直连。" : "Introduced pytdx connection pools, automatic speed checks, and live L1 A-share feeds."}
                 </p>
               </div>
               <div className="relative pl-4 border-l-2 border-primary/20">
                 <span className="absolute -left-1.5 top-1.5 h-3 w-3 rounded-full bg-primary/60 border-2 border-background" />
-                <h4 className="text-xs font-semibold">v0.1.10.cnx.1.0</h4>
+                <h4 className="text-xs font-semibold">v1.0.0</h4>
                 <p className="text-[10px] text-muted-foreground mt-1">
                   {isZh ? "Vibe-Trading-CNX 量化工作站首发版。集成微信 iLink 网关以支持扫码登录与防屏蔽，Docker 容器数据向前兼容。" : "Official release of Vibe-Trading-CNX. Integrated WeChat iLink gateway with session persistence and backward compatibility."}
                 </p>
