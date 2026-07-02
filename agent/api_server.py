@@ -74,15 +74,15 @@ def _get_uploads_dir() -> Path:
 
 class _DynamicEnvPath(type(Path())):
     def __new__(cls):
-        return super().__new__(cls, Path.home() / ".tide" / ".env")
+        return super().__new__(cls, Path.home() / ".tide-trading" / ".env")
 
     @property
     def _actual(self) -> Path:
         from src.config.paths import active_tenant_var
         tenant = active_tenant_var.get()
         if tenant == "default":
-            return Path.home() / ".tide" / ".env"
-        return Path.home() / ".tide" / "tenants" / tenant / ".env"
+            return Path.home() / ".tide-trading" / ".env"
+        return Path.home() / ".tide-trading" / "tenants" / tenant / ".env"
 
     def exists(self) -> bool:
         return self._actual.exists()
@@ -173,7 +173,7 @@ XUEQIU_COMBOS_CACHE = {}  # {tenant_id: (mtime, timestamp, details)}
 
 def _load_tenant_keys() -> list[dict]:
     """Load tenant API keys from ~/.tide/tenants/tenant_keys.json."""
-    path = Path.home() / ".tide" / "tenants" / "tenant_keys.json"
+    path = Path.home() / ".tide-trading" / "tenants" / "tenant_keys.json"
     if not path.exists():
         return []
     try:
@@ -185,7 +185,7 @@ def _load_tenant_keys() -> list[dict]:
 
 def _save_tenant_keys(keys: list[dict]) -> None:
     """Save tenant API keys to ~/.tide/tenants/tenant_keys.json."""
-    path = Path.home() / ".tide" / "tenants" / "tenant_keys.json"
+    path = Path.home() / ".tide-trading" / "tenants" / "tenant_keys.json"
     try:
         path.parent.mkdir(parents=True, exist_ok=True)
         path.write_text(json.dumps(keys, indent=2, ensure_ascii=False), encoding="utf-8")
@@ -951,7 +951,7 @@ def _get_feishu_channels_json_path() -> Path:
     tenant = active_tenant_var.get()
     if tenant == "default":
         return FEISHU_CHANNELS_JSON
-    return Path.home() / ".tide" / "tenants" / tenant / "feishu_channels.json"
+    return Path.home() / ".tide-trading" / "tenants" / tenant / "feishu_channels.json"
 
 
 def _load_feishu_channels() -> list[dict[str, Any]]:
@@ -1006,7 +1006,7 @@ def _save_feishu_channels(channels: list[dict[str, Any]]) -> None:
     path.write_text(json.dumps(channels, indent=2, ensure_ascii=False), encoding="utf-8")
 
 
-WECHAT_CHANNELS_JSON = Path.home() / ".tide" / "wechat_channels.json"
+WECHAT_CHANNELS_JSON = Path.home() / ".tide-trading" / "wechat_channels.json"
 
 def _get_wechat_channels_json_path() -> Path:
     """Get path to the WeChat channels persistent JSON file based on active tenant."""
@@ -1014,7 +1014,7 @@ def _get_wechat_channels_json_path() -> Path:
     tenant = active_tenant_var.get()
     if tenant == "default":
         return WECHAT_CHANNELS_JSON
-    return Path.home() / ".tide" / "tenants" / tenant / "wechat_channels.json"
+    return Path.home() / ".tide-trading" / "tenants" / tenant / "wechat_channels.json"
 
 
 def _load_wechat_channels() -> list[dict[str, Any]]:
@@ -1698,7 +1698,7 @@ def _read_settings_env_values() -> Dict[str, str]:
     if not isinstance(ENV_PATH, _DynamicEnvPath):
         admin_env = ENV_PATH
     else:
-        admin_env = Path.home() / ".tide" / ".env"
+        admin_env = Path.home() / ".tide-trading" / ".env"
         if not admin_env.exists():
             admin_env = AGENT_DIR / ".env"
 
@@ -1856,7 +1856,7 @@ def _build_llm_settings_response(values: Optional[Dict[str, str]] = None, is_pub
 
     is_custom = True
     if tenant != "default":
-        tenant_env = Path.home() / ".tide" / "tenants" / tenant / ".env"
+        tenant_env = Path.home() / ".tide-trading" / "tenants" / tenant / ".env"
         if not tenant_env.exists():
             is_custom = False
         else:
@@ -1933,7 +1933,7 @@ def _build_data_source_settings_response(values: Optional[Dict[str, str]] = None
     fred_api_key_hint = None
     ths_cookie_hint = None
     if tenant != "default" and not is_public:
-        tenant_env = Path.home() / ".tide" / "tenants" / tenant / ".env"
+        tenant_env = Path.home() / ".tide-trading" / "tenants" / tenant / ".env"
         tenant_vals = {}
         if tenant_env.exists():
             tenant_vals = _read_env_values(tenant_env)
@@ -1949,7 +1949,7 @@ def _build_data_source_settings_response(values: Optional[Dict[str, str]] = None
 
     is_custom = True
     if tenant != "default":
-        tenant_env = Path.home() / ".tide" / "tenants" / tenant / ".env"
+        tenant_env = Path.home() / ".tide-trading" / "tenants" / tenant / ".env"
         if not tenant_env.exists():
             is_custom = False
         else:
@@ -2478,7 +2478,7 @@ async def register_tenant(payload: CreateTenantKeyRequest):
     _save_tenant_keys(keys)
     
     # 4. 创建隔离目录
-    tenant_dir = Path.home() / ".tide" / "tenants" / tenant_id
+    tenant_dir = Path.home() / ".tide-trading" / "tenants" / tenant_id
     tenant_dir.mkdir(parents=True, exist_ok=True)
     
     # 初始化专属的配置说明文件
@@ -2524,7 +2524,7 @@ async def create_tenant_key(payload: CreateTenantKeyRequest):
     keys.append(new_key)
     _save_tenant_keys(keys)
     
-    tenant_dir = Path.home() / ".tide" / "tenants" / tenant_id
+    tenant_dir = Path.home() / ".tide-trading" / "tenants" / tenant_id
     tenant_dir.mkdir(parents=True, exist_ok=True)
     
     return TenantKeyItem(**new_key)
@@ -2868,7 +2868,7 @@ async def update_llm_settings(request: Request, payload: UpdateLLMSettingsReques
     tenant = active_tenant_var.get()
     tenant_vals = {}
     if tenant != "default":
-        tenant_env = Path.home() / ".tide" / "tenants" / tenant / ".env"
+        tenant_env = Path.home() / ".tide-trading" / "tenants" / tenant / ".env"
         if tenant_env.exists():
             tenant_vals = _read_env_values(tenant_env)
     else:
@@ -2936,7 +2936,7 @@ async def update_data_source_settings(request: Request, payload: UpdateDataSourc
     tenant = active_tenant_var.get()
     tenant_vals = {}
     if tenant != "default":
-        tenant_env = Path.home() / ".tide" / "tenants" / tenant / ".env"
+        tenant_env = Path.home() / ".tide-trading" / "tenants" / tenant / ".env"
         if tenant_env.exists():
             tenant_vals = _read_env_values(tenant_env)
     else:
@@ -5040,7 +5040,7 @@ async def get_shadow_report(shadow_id: str, format: str = "html"):
     if format not in ("html", "pdf"):
         raise HTTPException(status_code=400, detail="format must be html or pdf")
 
-    reports_dir = Path.home() / ".tide" / "shadow_reports"
+    reports_dir = Path.home() / ".tide-trading" / "shadow_reports"
     path = reports_dir / f"{shadow_id}.{format}"
     if not path.exists():
         raise HTTPException(status_code=404, detail=f"Shadow report not found: {shadow_id}.{format}")
