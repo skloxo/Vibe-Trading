@@ -247,8 +247,12 @@ export function GlobalDashboard() {
             <Cpu className="h-4.5 w-4.5 animate-pulse" />
           </div>
           <div>
-            <h1 className="text-sm font-black tracking-wider uppercase">TIDETRADING QUANT STATION</h1>
-            <p className="text-[9px] text-slate-400 font-mono tracking-widest">REAL-TIME MULTI-AGENT BOARDS</p>
+            <h1 className="text-sm font-black tracking-wider uppercase">
+              {isEn ? "TIDETRADING QUANT STATION" : "潮汐投研 · 量化工作站"}
+            </h1>
+            <p className="text-[9px] text-slate-400 font-mono tracking-widest">
+              {isEn ? "REAL-TIME MULTI-AGENT BOARDS" : "实时多智能体量化看板"}
+            </p>
           </div>
         </div>
 
@@ -594,7 +598,7 @@ export function GlobalDashboard() {
               <div className="border-b border-border/60 px-3 py-2 flex justify-between items-center bg-card/50 backdrop-blur-md shrink-0">
                 <span className="text-[11px] font-black tracking-wider text-muted-foreground uppercase flex items-center gap-1.5 font-mono">
                   <Terminal className="h-3.5 w-3.5 text-rose-500" />
-                  TideTrading {isEn ? "Real-time Simulation Terminal" : "实时仿真终端"}
+                  {isEn ? "TideTrading Real-time Simulation Terminal" : "潮汐投研 实时仿真终端"}
                 </span>
                 <span className="text-[8px] bg-rose-500/10 border border-rose-500/20 text-rose-400 px-1 py-0.2 font-bold animate-pulse">
                   SIMULATING
