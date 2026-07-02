@@ -130,3 +130,6 @@ REPOSITORIES_STATUS.md
 # Ensure data/ seed file is tracked normally
 !data/
 !data/.gitkeep
+
+# Local scratch / debug scripts
+scratch/

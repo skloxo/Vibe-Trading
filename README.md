@@ -22,7 +22,7 @@
 </p>
 
 > [!NOTE]
-> 本项目是 [Vibe-Trading](https://github.com/HKUDS/Vibe-Trading) 的高级定制分支版本（超集）。深度聚焦 **A股和港股** 市场，在整合技术指标与量化回测的同时，重点强化了**多维度市场特征提取**（如雪球网与主流社交媒体监控、舆情情绪面量化、大单资金流向监测、行业基本面复盘）与**多通道即插即用推送**（微信 iLink / 飞书），并实现了多租户安全沙箱隔离机制与本地 API 可信授权，旨在为个人投资者提供更懂中国市场、多维立体的智能投研工作站。
+> **Vibe-Trading-CNX** 是专注 **A股与港股** 市场的开源独立智能投研工作站，于 2026-07 正式从上游社区独立。在整合技术指标与量化回测的同时，重点强化了**多维度市场特征提取**（如雪球网与主流社交媒体监控、舆情情绪面量化、大单资金流向监测、行业基本面复盘）与**多通道即插即用推送**（微信 iLink / 飞书），并实现了多租户安全沙箱隔离机制与本地 API 可信授权。向开源社区 [Vibe-Trading](https://github.com/HKUDS/Vibe-Trading) 致谢。
 
 <p align="center">
   <a href="#-最新动态"- **2026-07-02** 🚀 **v1.7.1 — 共享数据底座、大屏全卡片玻璃态重构与数据清洗自愈版本发布**：
@@ -171,7 +171,7 @@
 
 ## 💡 什么是 Vibe-Trading-CNX？
 
-Vibe-Trading-CNX 是面向 **A股与港股** 的开源智能投研工作站，基于上游 [Vibe-Trading](https://github.com/HKUDS/Vibe-Trading) 深度定制。
+Vibe-Trading-CNX 是面向 **A股与港股** 的开源独立智能投研工作站，深度聚焦中国市场的量化与 AI 投研能力。
 
 它将自然语言提示连接到多维度市场特征分析（**情绪面 / 资金面 / 技术面 / 基本面**）、策略回测引擎、报告生成和持久投研记忆，并通过微信（iLink）/ 飞书等通道将研究简报即时推送到你的手机。
 
@@ -390,7 +390,7 @@ https://github.com/user-attachments/assets/3754a414-c3ee-464f-b1e8-78e1a74fbd30
 </td>
 </tr>
 <tr>
-<td colspan="2" align="center"><sub>☝️ 自然语言回测与多智能体 swarm 辩论 — Web UI + CLI（演示视频来自上游 Vibe-Trading，CNX 分支功能超集兼容）</sub></td>
+<td colspan="2" align="center"><sub>☝️ 自然语言回测与多智能体 swarm 辩论 — Web UI + CLI（Vibe-Trading-CNX v1.7 功能演示）</sub></td>
 </tr>
 </table>
 </div>
