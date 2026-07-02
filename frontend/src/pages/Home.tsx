@@ -65,7 +65,7 @@ export function Home() {
         </div>
 
         <h1 className="text-4xl md:text-5xl font-extrabold tracking-tight bg-gradient-to-r from-primary via-orange-500 to-amber-500 bg-clip-text text-transparent">
-          TideTrading / 潮汐投研
+          {isZh ? "潮汐投研" : "TideTrading"}
         </h1>
         <p className="max-w-2xl text-base md:text-lg text-muted-foreground leading-relaxed">
           {isZh
@@ -325,7 +325,7 @@ export function Home() {
             {isZh ? "线路蓝图与迭代展望" : "Roadmap & Release Changelog"}
           </h2>
           <p className="text-xs text-muted-foreground max-w-xl mx-auto">
-            {isZh ? "TideTrading / 潮汐投研 产品线的最新演进动态与中长期功能规划蓝图。" : "Track our current milestones and mid-to-long term quantitative roadmap."}
+            {isZh ? "潮汐投研 产品线的最新演进动态与中长期功能规划蓝图。" : "Track our current milestones and mid-to-long term quantitative roadmap."}
           </p>
         </div>
 
@@ -393,7 +393,7 @@ export function Home() {
                 <span className="absolute -left-1.5 top-1.5 h-3 w-3 rounded-full bg-primary/60 border-2 border-background" />
                 <h4 className="text-xs font-semibold">v1.0.0</h4>
                 <p className="text-[10px] text-muted-foreground mt-1">
-                  {isZh ? "TideTrading / 潮汐投研 量化工作站首发版。集成微信 iLink 网关以支持扫码登录与防屏蔽，Docker 容器数据向前兼容。" : "Official release of TideTrading / 潮汐投研. Integrated WeChat iLink gateway with session persistence and backward compatibility."}
+                  {isZh ? "潮汐投研 量化工作站首发版。集成微信 iLink 网关以支持扫码登录与防屏蔽，Docker 容器数据向前兼容。" : "Official release of TideTrading. Integrated WeChat iLink gateway with session persistence and backward compatibility."}
                 </p>
               </div>
             </div>
@@ -488,7 +488,7 @@ export function Home() {
           <span>{isZh ? "有疑问？请阅读共享技能使用指引" : "Need help? Check local platform guide skill."}</span>
         </div>
         <div>
-          <span>&copy; 2026 TideTrading / 潮汐投研. All rights reserved.</span>
+          <span>&copy; 2026 {isZh ? "潮汐投研" : "TideTrading"}. All rights reserved.</span>
         </div>
       </footer>
     </div>
