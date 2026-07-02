@@ -63,9 +63,10 @@ RUN pip install --no-cache-dir -e .
 # Runtime should not run as root. Keep writable app data directories owned by
 # the service user so named Docker volumes inherit usable permissions.
 RUN useradd --create-home --shell /usr/sbin/nologin vibe \
-    && mkdir -p agent/runs agent/sessions agent/uploads agent/.swarm/runs /home/vibe/.vibe-trading-cnx \
-    && ln -s /home/vibe/.vibe-trading-cnx /home/vibe/.vibe-trading \
-    && chown -R vibe:vibe /app /home/vibe/.vibe-trading-cnx
+    && mkdir -p agent/runs agent/sessions agent/uploads agent/.swarm/runs /home/vibe/.tide-trading \
+    && ln -s /home/vibe/.tide-trading /home/vibe/.vibe-trading-cnx \
+    && ln -s /home/vibe/.tide-trading /home/vibe/.vibe-trading \
+    && chown -R vibe:vibe /app /home/vibe/.tide-trading
 USER vibe
 
 # Default port
@@ -76,4 +77,4 @@ HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
     CMD python -c "import urllib.request; urllib.request.urlopen('http://localhost:8899/health')" || exit 1
 
 # Run API server (serves frontend/dist as static files)
-CMD ["vibe-trading-cnx", "serve", "--host", "0.0.0.0", "--port", "8899"]
+CMD ["tide", "serve", "--host", "0.0.0.0", "--port", "8899"]
