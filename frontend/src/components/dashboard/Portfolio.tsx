@@ -24,14 +24,19 @@ export function Portfolio({ data, netAsset }: PortfolioProps) {
   const displayNetAsset = netAsset !== undefined ? `${netAsset.toFixed(2)}M` : "4.82M";
 
   return (
-    <div className="border border-slate-200 dark:border-[#222233] bg-white dark:bg-[#10101a]/80 p-3 flex flex-col gap-2 h-full rounded shadow-sm dark:shadow-none">
-      <div className="flex justify-between items-center border-b border-slate-200 dark:border-[#222233] pb-1.5">
-        <span className="text-xs font-bold text-slate-700 dark:text-slate-300">💼 我的证券持仓明细 (PORTFOLIO)</span>
-        <span className="text-[10px] text-slate-500 dark:text-slate-400 font-mono">净资产: {displayNetAsset}</span>
+    <div className="border border-border/80 bg-card/90 backdrop-blur-md p-4.5 flex flex-col gap-3 h-full rounded-xl transition-all duration-300 hover:shadow-lg hover:shadow-rose-500/5">
+      <div className="flex justify-between items-center border-b border-border/60 pb-2">
+        <span className="text-[11px] font-black tracking-wider text-muted-foreground uppercase flex items-center gap-1.5">
+          <span className="h-1.5 w-1.5 rounded-full bg-rose-500 animate-pulse" />
+          💼 我的证券持仓明细 (PORTFOLIO)
+        </span>
+        <span className="text-[10px] text-rose-400 font-mono bg-rose-500/10 px-2 py-0.5 border border-rose-500/20 rounded-sm font-bold uppercase tracking-wider">
+          净资产: {displayNetAsset}
+        </span>
       </div>
 
-      <div className="space-y-2 flex-1 overflow-auto">
-        <div className="grid grid-cols-12 text-[9px] font-bold text-slate-400 dark:text-slate-500 px-1 py-0.5 border-b border-slate-100 dark:border-[#1c1c2b]">
+      <div className="space-y-1.5 flex-1 overflow-auto">
+        <div className="grid grid-cols-12 text-[10px] font-black text-muted-foreground/80 px-2 py-1 border-b border-border/40 uppercase tracking-widest">
           <span className="col-span-3">名称</span>
           <span className="col-span-3 text-right">持仓/成本</span>
           <span className="col-span-3 text-right">现价</span>
@@ -41,26 +46,26 @@ export function Portfolio({ data, netAsset }: PortfolioProps) {
         {positions.map((pos) => {
           const isUp = pos.profit >= 0;
           return (
-            <div key={pos.code} className="grid grid-cols-12 text-xs items-center px-1 py-1.5 hover:bg-slate-50 dark:hover:bg-[#1a1a2e] rounded transition-colors">
-              <div className="col-span-3 flex flex-col">
-                <span className="text-slate-900 dark:text-white font-sans font-bold truncate">{pos.name}</span>
-                <span className="text-[9px] text-slate-500 dark:text-slate-400 font-mono">{pos.code}</span>
+            <div key={pos.code} className="grid grid-cols-12 text-xs items-center px-2 py-2 hover:bg-muted/40 transition-all duration-300 rounded-md border-b border-border/20 last:border-b-0">
+              <div className="col-span-3 flex flex-col gap-0.5">
+                <span className="text-foreground font-black text-[13px] truncate">{pos.name}</span>
+                <span className="text-[9px] text-muted-foreground font-mono bg-muted/60 px-1 py-0.2 rounded-sm w-fit">{pos.code}</span>
               </div>
 
-              <div className="col-span-3 flex flex-col items-end">
-                <span className="text-slate-800 dark:text-slate-200 font-mono tabular-nums">{pos.shares}</span>
-                <span className="text-[9px] text-slate-500 dark:text-slate-400 font-mono tabular-nums">{pos.cost.toFixed(2)}</span>
+              <div className="col-span-3 flex flex-col items-end gap-0.5">
+                <span className="text-foreground/90 font-mono font-bold tabular-nums text-[12px]">{pos.shares}</span>
+                <span className="text-[9px] text-muted-foreground font-mono tabular-nums">{pos.cost.toFixed(2)}</span>
               </div>
 
-              <span className="col-span-3 text-right text-slate-700 dark:text-slate-300 font-bold font-mono tabular-nums">
+              <span className="col-span-3 text-right text-foreground font-black font-mono tabular-nums text-[13px]">
                 {pos.price.toFixed(2)}
               </span>
 
-              <div className="col-span-3 flex flex-col items-end">
-                <span className={`font-bold font-mono tabular-nums ${isUp ? "text-rose-600 dark:text-[#ff3366]" : "text-emerald-600 dark:text-[#00ff88]"}`}>
+              <div className="col-span-3 flex flex-col items-end gap-0.5">
+                <span className={`font-black font-mono tabular-nums text-[13px] ${isUp ? "text-rose-500" : "text-emerald-500"}`}>
                   {isUp ? "+" : ""}{pos.profit.toFixed(2)}万
                 </span>
-                <span className={`text-[9px] font-bold font-mono tabular-nums ${isUp ? "text-rose-600 dark:text-[#ff3366]" : "text-emerald-600 dark:text-[#00ff88]"}`}>
+                <span className={`text-[9px] font-black font-mono tabular-nums ${isUp ? "text-rose-500" : "text-emerald-500"}`}>
                   {isUp ? "+" : ""}{pos.profitRate.toFixed(2)}%
                 </span>
               </div>

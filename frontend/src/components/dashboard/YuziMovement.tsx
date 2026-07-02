@@ -25,37 +25,45 @@ export function YuziMovement({ data }: YuziMovementProps) {
   const yuziList = data && data.length > 0 ? data : fallbackList;
 
   return (
-    <div className="border border-slate-200 dark:border-[#222233] bg-white dark:bg-[#10101a]/80 p-3 flex flex-col gap-2 h-full rounded shadow-sm dark:shadow-none">
-      <div className="flex justify-between items-center border-b border-slate-200 dark:border-[#222233] pb-1.5">
-        <span className="text-xs font-bold text-slate-700 dark:text-slate-300">🕵️ 游资盘中大单动向 (YUZI MOVEMENT)</span>
-        <span className="text-[8px] px-1 py-0.2 bg-rose-50 dark:bg-[#ff3366]/20 text-rose-600 dark:text-[#ff3366] rounded font-mono border border-rose-100 dark:border-transparent">LIVE FEED</span>
+    <div className="border border-border/80 bg-card/90 backdrop-blur-md p-4.5 flex flex-col gap-3 h-full rounded-xl transition-all duration-300 hover:shadow-lg hover:shadow-rose-500/5">
+      <div className="flex justify-between items-center border-b border-border/60 pb-2">
+        <span className="text-[11px] font-black tracking-wider text-muted-foreground uppercase flex items-center gap-1.5">
+          <span className="h-1.5 w-1.5 rounded-full bg-rose-500 animate-pulse" />
+          🕵️ 游资盘中大单动向 (YUZI MOVEMENT)
+        </span>
+        <span className="text-[8px] px-1.5 py-0.5 bg-rose-500/10 text-rose-400 rounded-sm font-mono border border-rose-500/20 uppercase tracking-widest animate-pulse">
+          Live Feed
+        </span>
       </div>
 
-      <div className="space-y-2 flex-1 overflow-auto">
+      <div className="space-y-1.5 flex-1 overflow-auto">
         {yuziList.map((item, idx) => {
           const isBuy = item.action === "buy";
           return (
-            <div key={idx} className="flex justify-between items-center text-xs border-b border-slate-100 dark:border-[#181827] pb-1.5 last:border-b-0">
-              <div className="flex flex-col">
-                <span className="text-slate-900 dark:text-white font-bold">{item.name}</span>
-                <span className="text-[10px] text-slate-500 dark:text-slate-400 font-mono">{item.type}</span>
+            <div 
+              key={idx} 
+              className="flex justify-between items-center text-xs border-b border-border/40 py-2 px-1 hover:bg-muted/40 transition-all duration-300 hover:translate-x-1.5 rounded-md last:border-b-0"
+            >
+              <div className="flex flex-col gap-0.5">
+                <span className="text-foreground font-black text-[13px]">{item.name}</span>
+                <span className="text-[9px] text-muted-foreground font-mono font-medium">{item.type}</span>
               </div>
 
-              <div className="flex flex-col items-center">
-                <span className="text-slate-700 dark:text-slate-300 font-sans">{item.stockName}</span>
-                <span className="text-[9px] text-slate-500 dark:text-slate-400 font-mono">{item.stockCode}</span>
+              <div className="flex flex-col items-center gap-0.5">
+                <span className="text-foreground/90 font-medium text-[12px]">{item.stockName}</span>
+                <span className="text-[9px] text-muted-foreground font-mono bg-muted/60 px-1 py-0.2 rounded-sm">{item.stockCode}</span>
               </div>
 
-              <div className="text-right flex items-center gap-1">
+              <div className="text-right flex items-center gap-1.5">
                 <div className="flex flex-col items-end">
-                  <span className={`font-bold font-mono ${isBuy ? "text-rose-600 dark:text-[#ff3366]" : "text-emerald-600 dark:text-[#00ff88]"}`}>
-                    {isBuy ? "净买入" : "净卖出"} {Math.abs(item.amount).toFixed(2)}亿
+                  <span className={`font-black font-mono text-[13px] tracking-tight ${isBuy ? "text-rose-500" : "text-emerald-500"}`}>
+                    {isBuy ? "＋" : "－"}{Math.abs(item.amount).toFixed(2)}亿
                   </span>
                 </div>
                 {isBuy ? (
-                  <ArrowUpRight className="h-3.5 w-3.5 text-rose-600 dark:text-[#ff3366]" />
+                  <ArrowUpRight className="h-4 w-4 text-rose-500 animate-bounce" style={{ animationDuration: "3s" }} />
                 ) : (
-                  <ArrowDownRight className="h-3.5 w-3.5 text-emerald-600 dark:text-[#00ff88]" />
+                  <ArrowDownRight className="h-4 w-4 text-emerald-500 animate-bounce" style={{ animationDuration: "3s" }} />
                 )}
               </div>
             </div>

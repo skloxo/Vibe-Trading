@@ -235,9 +235,9 @@ export function GlobalDashboard() {
   }, [logs]);
 
   return (
-    <div className="flex flex-col min-h-screen bg-[#07070c] text-slate-200 overflow-x-hidden font-sans">
+    <div className="flex flex-col min-h-screen bg-background text-foreground overflow-x-hidden font-sans">
       {/* HEADER SECTION */}
-      <header className="flex flex-col md:flex-row justify-between items-center px-4 py-3 bg-[#0d0d15] border-b border-slate-200 dark:border-[#1a1a2e] gap-3 shrink-0">
+      <header className="flex flex-col md:flex-row justify-between items-center px-4 py-3 bg-card border-b border-border gap-3 shrink-0">
         <div className="flex items-center gap-3">
           <div className="flex h-7.5 w-7.5 items-center justify-center bg-rose-600/10 border border-rose-500/20 text-rose-500 rounded">
             <Cpu className="h-4.5 w-4.5 animate-pulse" />
@@ -251,13 +251,13 @@ export function GlobalDashboard() {
         {/* View and layout controls */}
         <div className="flex flex-wrap items-center gap-3">
           {/* View Mode Toggle */}
-          <div className="bg-slate-100 dark:bg-[#12121e] border border-slate-200 dark:border-[#222233] p-0.5 rounded flex gap-1 text-[10px]">
+          <div className="bg-muted border border-border p-0.5 rounded flex gap-1 text-[10px]">
             <button
               onClick={() => setViewMode("global")}
               className={`px-3 py-1 rounded transition-colors ${
                 viewMode === "global" 
                   ? "bg-rose-600 dark:bg-[#ff3366] text-white font-bold" 
-                  : "text-slate-500 hover:text-slate-700 dark:hover:text-slate-300"
+                  : "text-muted-foreground hover:text-foreground"
               }`}
             >
               全局共享大屏
@@ -267,7 +267,7 @@ export function GlobalDashboard() {
               className={`px-3 py-1 rounded transition-colors ${
                 viewMode === "personal" 
                   ? "bg-rose-600 dark:bg-[#ff3366] text-white font-bold" 
-                  : "text-slate-500 hover:text-slate-700 dark:hover:text-slate-300"
+                  : "text-muted-foreground hover:text-foreground"
               }`}
             >
               租户独立看板
@@ -280,7 +280,7 @@ export function GlobalDashboard() {
             className={`flex items-center gap-1 px-3 py-1.5 rounded text-[10px] font-bold border transition-colors ${
               isPlaying
                 ? "bg-rose-600/10 border-rose-500/30 text-rose-500 hover:bg-rose-650/20"
-                : "bg-slate-100 dark:bg-[#12121e] border-slate-200 dark:border-[#222233] text-slate-500 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-[#1a1a2e]"
+                : "bg-muted border-border text-muted-foreground hover:bg-muted/70"
             }`}
           >
             {isPlaying ? "⏸️ 仿真运行中" : "▶️ 仿真已暂停"}
@@ -300,7 +300,7 @@ export function GlobalDashboard() {
             onClick={() => setIsLayoutLocked(!isLayoutLocked)}
             className={`flex items-center gap-1.5 px-3 py-1.5 rounded text-[10px] font-bold border transition-colors ${
               isLayoutLocked
-                ? "bg-slate-100 dark:bg-[#12121e] border-slate-200 dark:border-[#222233] text-slate-500 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-[#1a1a2e]"
+                ? "bg-muted border-border text-muted-foreground hover:bg-muted/70"
                 : "bg-amber-600/10 border-amber-500/30 text-amber-500 hover:bg-amber-650/20"
             }`}
           >
@@ -319,11 +319,11 @@ export function GlobalDashboard() {
 
           {/* Role select */}
           <div className="flex items-center gap-2">
-            <span className="text-[10px] text-slate-400 font-mono">租户角色:</span>
+            <span className="text-[10px] text-muted-foreground font-mono">租户角色:</span>
             <select
               value={currentTenant}
               onChange={(e) => setCurrentTenant(e.target.value)}
-              className="text-[10px] bg-slate-100 dark:bg-[#12121e] border border-slate-200 dark:border-[#222233] rounded px-2.5 py-1 text-slate-700 dark:text-slate-350 focus:outline-none"
+              className="text-[10px] bg-muted border border-border rounded px-2.5 py-1 text-foreground focus:outline-none"
             >
               <option value="tenant_a">租户A (仅题材监控)</option>
               <option value="tenant_b">租户B (量化交易面板)</option>
@@ -334,13 +334,13 @@ export function GlobalDashboard() {
           {/* Layout config toggle */}
           <button
             onClick={() => setShowConfig(!showConfig)}
-            className="p-1.5 bg-slate-100 dark:bg-[#12121e] border border-slate-200 dark:border-[#222233] rounded text-slate-400 hover:text-slate-800 dark:hover:text-white transition-colors"
+            className="p-1.5 bg-muted border border-border rounded text-muted-foreground hover:text-foreground transition-colors"
           >
             <Settings className="h-4 w-4" />
           </button>
 
           {/* Time display */}
-          <div className="text-xs font-mono bg-slate-100 dark:bg-[#12121e] px-3 py-1 rounded border border-slate-200 dark:border-[#222233] text-slate-650 dark:text-slate-400">
+          <div className="text-xs font-mono bg-muted px-3 py-1 rounded border border-border text-muted-foreground">
             ⏰ {currentTime || "--:--:--"}
           </div>
         </div>
@@ -348,10 +348,10 @@ export function GlobalDashboard() {
 
       {/* COMPONENT TOGGLES CONFIG POPUP */}
       {showConfig && (
-        <div className="mx-4 mt-3 bg-[#0d0d15] border border-slate-200 dark:border-[#222233] p-3 text-xs rounded shadow-lg animate-in fade-in duration-250 z-50">
-          <div className="flex justify-between items-center border-b border-slate-200 dark:border-[#222233] pb-2 mb-3">
-            <span className="font-black text-rose-600 dark:text-[#ff3366] tracking-wider">🛠️ 仪表盘组件状态配置</span>
-            <button onClick={() => setShowConfig(false)} className="text-slate-400 hover:text-white">✕</button>
+        <div className="mx-4 mt-3 bg-card border border-border p-3 text-xs rounded shadow-lg animate-in fade-in duration-250 z-50">
+          <div className="flex justify-between items-center border-b border-border pb-2 mb-3">
+            <span className="font-black text-rose-500 tracking-wider">🛠️ 仪表盘组件状态配置</span>
+            <button onClick={() => setShowConfig(false)} className="text-muted-foreground hover:text-foreground">✕</button>
           </div>
           <div className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-7 gap-3">
             {Object.keys(enabledWidgets).map((id) => {
@@ -394,7 +394,7 @@ export function GlobalDashboard() {
         >
           {/* Watchlist widget */}
           {enabledWidgets.watchlist && isWidgetAllowed("watchlist") && (
-            <div key="watchlist" className="bg-[#10101a]/80 border border-slate-200 dark:border-[#222233] rounded overflow-hidden shadow-sm dark:shadow-none">
+            <div key="watchlist" className="border border-border/80 bg-card/90 backdrop-blur-md rounded-xl overflow-hidden shadow-sm transition-all duration-300 hover:shadow-lg hover:shadow-rose-500/5">
               {!isLayoutLocked && <div className="drag-handle h-4 bg-slate-200 dark:bg-[#1a1a2e] cursor-move flex items-center justify-center"><Grid className="h-3 w-3 text-slate-400" /></div>}
               <Watchlist data={marketData?.watchlist} />
             </div>
@@ -402,7 +402,7 @@ export function GlobalDashboard() {
 
           {/* LimitUpBoard widget */}
           {enabledWidgets.limitUp && isWidgetAllowed("limitUp") && (
-            <div key="limitUp" className="bg-[#10101a]/80 border border-slate-200 dark:border-[#222233] rounded overflow-hidden shadow-sm dark:shadow-none">
+            <div key="limitUp" className="border border-border/80 bg-card/90 backdrop-blur-md rounded-xl overflow-hidden shadow-sm transition-all duration-300 hover:shadow-lg hover:shadow-rose-500/5">
               {!isLayoutLocked && <div className="drag-handle h-4 bg-slate-200 dark:bg-[#1a1a2e] cursor-move flex items-center justify-center"><Grid className="h-3 w-3 text-slate-400" /></div>}
               <LimitUpBoard data={marketData?.limitup} />
             </div>
@@ -410,7 +410,7 @@ export function GlobalDashboard() {
 
           {/* YuziMovement widget */}
           {enabledWidgets.yuzi && isWidgetAllowed("yuzi") && (
-            <div key="yuzi" className="bg-[#10101a]/80 border border-slate-200 dark:border-[#222233] rounded overflow-hidden shadow-sm dark:shadow-none">
+            <div key="yuzi" className="border border-border/80 bg-card/90 backdrop-blur-md rounded-xl overflow-hidden shadow-sm transition-all duration-300 hover:shadow-lg hover:shadow-rose-500/5">
               {!isLayoutLocked && <div className="drag-handle h-4 bg-slate-200 dark:bg-[#1a1a2e] cursor-move flex items-center justify-center"><Grid className="h-3 w-3 text-slate-400" /></div>}
               <YuziMovement data={marketData?.yuzi} />
             </div>
@@ -418,7 +418,7 @@ export function GlobalDashboard() {
 
           {/* PopularStocks widget */}
           {enabledWidgets.popular && isWidgetAllowed("popular") && (
-            <div key="popular" className="bg-[#10101a]/80 border border-slate-200 dark:border-[#222233] rounded overflow-hidden shadow-sm dark:shadow-none">
+            <div key="popular" className="border border-border/80 bg-card/90 backdrop-blur-md rounded-xl overflow-hidden shadow-sm transition-all duration-300 hover:shadow-lg hover:shadow-rose-500/5">
               {!isLayoutLocked && <div className="drag-handle h-4 bg-slate-200 dark:bg-[#1a1a2e] cursor-move flex items-center justify-center"><Grid className="h-3 w-3 text-slate-400" /></div>}
               <PopularStocks data={marketData?.watchlist} />
             </div>
@@ -426,7 +426,7 @@ export function GlobalDashboard() {
 
           {/* MarketSentiment widget */}
           {enabledWidgets.sentiment && isWidgetAllowed("sentiment") && (
-            <div key="sentiment" className="bg-[#10101a]/80 border border-slate-200 dark:border-[#222233] rounded overflow-hidden shadow-sm dark:shadow-none">
+            <div key="sentiment" className="border border-border/80 bg-card/90 backdrop-blur-md rounded-xl overflow-hidden shadow-sm transition-all duration-300 hover:shadow-lg hover:shadow-rose-500/5">
               {!isLayoutLocked && <div className="drag-handle h-4 bg-slate-200 dark:bg-[#1a1a2e] cursor-move flex items-center justify-center"><Grid className="h-3 w-3 text-slate-400" /></div>}
               <MarketSentiment score={marketData?.sentiment?.score} description={marketData?.sentiment?.description} />
             </div>
@@ -434,7 +434,7 @@ export function GlobalDashboard() {
 
           {/* FundFlows widget */}
           {enabledWidgets.fundFlows && isWidgetAllowed("fundFlows") && (
-            <div key="fundFlows" className="bg-[#10101a]/80 border border-slate-200 dark:border-[#222233] rounded overflow-hidden shadow-sm dark:shadow-none">
+            <div key="fundFlows" className="border border-border/80 bg-card/90 backdrop-blur-md rounded-xl overflow-hidden shadow-sm transition-all duration-300 hover:shadow-lg hover:shadow-rose-500/5">
               {!isLayoutLocked && <div className="drag-handle h-4 bg-slate-200 dark:bg-[#1a1a2e] cursor-move flex items-center justify-center"><Grid className="h-3 w-3 text-slate-400" /></div>}
               <FundFlows data={marketData?.sectors} />
             </div>
@@ -442,7 +442,7 @@ export function GlobalDashboard() {
 
           {/* ConceptRotation widget */}
           {enabledWidgets.concepts && isWidgetAllowed("concepts") && (
-            <div key="concepts" className="bg-[#10101a]/80 border border-slate-200 dark:border-[#222233] rounded overflow-hidden shadow-sm dark:shadow-none">
+            <div key="concepts" className="border border-border/80 bg-card/90 backdrop-blur-md rounded-xl overflow-hidden shadow-sm transition-all duration-300 hover:shadow-lg hover:shadow-rose-500/5">
               {!isLayoutLocked && <div className="drag-handle h-4 bg-slate-200 dark:bg-[#1a1a2e] cursor-move flex items-center justify-center"><Grid className="h-3 w-3 text-slate-400" /></div>}
               <ConceptRotation data={marketData?.sectors} />
             </div>
@@ -450,7 +450,7 @@ export function GlobalDashboard() {
 
           {/* LonghuBang widget */}
           {enabledWidgets.longhu && isWidgetAllowed("longhu") && (
-            <div key="longhu" className="bg-[#10101a]/80 border border-slate-200 dark:border-[#222233] rounded overflow-hidden shadow-sm dark:shadow-none">
+            <div key="longhu" className="border border-border/80 bg-card/90 backdrop-blur-md rounded-xl overflow-hidden shadow-sm transition-all duration-300 hover:shadow-lg hover:shadow-rose-500/5">
               {!isLayoutLocked && <div className="drag-handle h-4 bg-slate-200 dark:bg-[#1a1a2e] cursor-move flex items-center justify-center"><Grid className="h-3 w-3 text-slate-400" /></div>}
               <LonghuBang data={marketData?.longhu} />
             </div>
@@ -458,11 +458,11 @@ export function GlobalDashboard() {
 
           {/* ECharts Relation Graph widget */}
           {enabledWidgets.d3Graph && isWidgetAllowed("d3Graph") && (
-            <div key="d3Graph" className="bg-[#10101a]/80 border border-slate-200 dark:border-[#222233] rounded overflow-hidden shadow-sm dark:shadow-none flex flex-col p-3">
+            <div key="d3Graph" className="border border-border/80 bg-card/90 backdrop-blur-md rounded-xl overflow-hidden shadow-sm transition-all duration-300 hover:shadow-lg hover:shadow-rose-500/5 flex flex-col p-4">
               {!isLayoutLocked && <div className="drag-handle h-4 bg-slate-200 dark:bg-[#1a1a2e] cursor-move flex items-center justify-center shrink-0 mb-1"><Grid className="h-3 w-3 text-slate-400" /></div>}
-              <div className="flex justify-between items-center border-b border-slate-200 dark:border-[#222233] pb-1.5 mb-1.5 shrink-0">
-                <span className="text-xs font-bold text-slate-700 dark:text-slate-300 flex items-center gap-1.5">
-                  <Cpu className="h-3.5 w-3.5 text-rose-600 dark:text-[#ff3366]" />
+              <div className="flex justify-between items-center border-b border-border/60 pb-2 mb-2 shrink-0">
+                <span className="text-[11px] font-black tracking-wider text-muted-foreground uppercase flex items-center gap-1.5">
+                  <Cpu className="h-3.5 w-3.5 text-rose-500" />
                   ECharts 关系拓扑图谱 · 产业链关联网络 (FORCE GRAPH)
                 </span>
                 <span className="text-[8px] bg-emerald-50 dark:bg-[#00ff88]/10 text-emerald-650 dark:text-[#00ff88] border border-emerald-300 dark:border-[#00ff88]/30 px-1 py-0.2 rounded font-bold uppercase tracking-wider">
@@ -472,9 +472,9 @@ export function GlobalDashboard() {
               <div className="flex-1 min-h-0 relative">
                 <EChartsRelationGraph onSelectNode={setActiveNode} activeNode={activeNode} />
                 {activeNode && (
-                  <div className="absolute bottom-3 left-3 right-3 bg-white/95 dark:bg-[#0d0d15]/95 border border-slate-250 dark:border-[#333344] p-3 text-xs flex flex-col gap-1.5 animate-in fade-in slide-in-from-bottom-2 duration-200 text-slate-800 dark:text-slate-350 shadow-lg rounded">
-                    <div className="flex justify-between items-center border-b border-slate-200 dark:border-[#222233] pb-1">
-                      <span className="font-bold text-rose-600 dark:text-[#ff3366] text-sm">
+                  <div className="absolute bottom-3 left-3 right-3 bg-card/95 border border-border p-3 text-xs flex flex-col gap-1.5 animate-in fade-in slide-in-from-bottom-2 duration-200 text-foreground shadow-lg rounded-xl">
+                    <div className="flex justify-between items-center border-b border-border pb-1">
+                      <span className="font-bold text-rose-500 text-sm">
                         {activeNode === "low-alt" ? "题材: 低空经济" :
                          activeNode === "ai-count" ? "题材: AI算力" :
                          activeNode === "wanfeng" ? "个股: 万丰奥威 (301550)" :
@@ -499,7 +499,7 @@ export function GlobalDashboard() {
 
           {/* Agent Chat Console widget */}
           {enabledWidgets.agentConsole && isWidgetAllowed("agentConsole") && (
-            <div key="agentConsole" className="bg-[#10101a]/80 border border-slate-200 dark:border-[#222233] rounded overflow-hidden shadow-sm dark:shadow-none">
+            <div key="agentConsole" className="border border-border/80 bg-card/90 backdrop-blur-md rounded-xl overflow-hidden shadow-sm transition-all duration-300 hover:shadow-lg hover:shadow-rose-500/5">
               {!isLayoutLocked && <div className="drag-handle h-4 bg-slate-200 dark:bg-[#1a1a2e] cursor-move flex items-center justify-center"><Grid className="h-3 w-3 text-slate-400" /></div>}
               <AgentChatConsole />
             </div>
@@ -507,32 +507,32 @@ export function GlobalDashboard() {
 
           {/* Probability Lattice widget */}
           {enabledWidgets.lattice && isWidgetAllowed("lattice") && (
-            <div key="lattice" className="bg-[#10101a]/80 border border-slate-200 dark:border-[#222233] rounded overflow-hidden shadow-sm dark:shadow-none p-3 flex flex-col gap-2">
+            <div key="lattice" className="border border-border/80 bg-card/90 backdrop-blur-md p-4 flex flex-col gap-2.5 h-full rounded-xl transition-all duration-300 hover:shadow-lg hover:shadow-rose-500/5">
               {!isLayoutLocked && <div className="drag-handle h-4 bg-slate-200 dark:bg-[#1a1a2e] cursor-move flex items-center justify-center"><Grid className="h-3 w-3 text-slate-400" /></div>}
-              <span className="text-xs font-bold text-slate-700 dark:text-slate-300">📈 概率格子 · 涨停突破概率分布 (PROBABILITY LATTICE)</span>
-              <div className="flex-1 flex flex-col gap-2 bg-slate-50 dark:bg-[#09090f] p-4 rounded relative border border-slate-100 dark:border-[#1f1f2e] min-h-[120px]">
-                <div className="absolute top-2 right-2 flex items-center gap-1.5 text-[8px] text-slate-500 font-bold">
-                  <span className="inline-block w-2 h-2 bg-rose-600 dark:bg-[#ff3366] rounded-full" /> 涨停成功
-                  <span className="inline-block w-2 h-2 bg-emerald-600 dark:bg-[#00ff88] rounded-full" /> 炸板回落
+              <span className="text-[11px] font-black tracking-wider text-muted-foreground uppercase flex items-center gap-1.5">📈 概率格子 · 涨停突破概率分布 (PROBABILITY LATTICE)</span>
+              <div className="flex-1 flex flex-col gap-2.5 bg-muted/30 p-4 rounded-lg relative border border-border/40 min-h-[120px]">
+                <div className="absolute top-2 right-2 flex items-center gap-1.5 text-[8px] text-muted-foreground font-black tracking-wider uppercase">
+                  <span className="inline-block w-2 h-2 bg-rose-500 rounded-full animate-pulse" /> 涨停成功
+                  <span className="inline-block w-2 h-2 bg-emerald-500 rounded-full" /> 炸板回落
                 </div>
 
-                <div className="flex flex-col items-center gap-2 py-2 border-b border-slate-200 dark:border-[#222233]/40">
-                  <div className="flex gap-6 text-slate-500 dark:text-slate-650 text-[10px]">
+                <div className="flex flex-col items-center gap-2 py-2 border-b border-border/25">
+                  <div className="flex gap-6 text-muted-foreground/80 text-[10px] font-bold">
                     <span>1 阶</span><span>2 阶</span><span>3 阶</span><span>4 阶</span><span>5 阶</span>
                   </div>
                   <div className="flex gap-4">
                     {[...Array(9)].map((_, i) => (
-                      <span key={i} className="h-1 w-1 rounded-full bg-slate-300 dark:bg-slate-700" />
+                      <span key={i} className="h-1 w-1 rounded-full bg-border" />
                     ))}
                   </div>
                   <div className="flex gap-4 px-2">
                     {[...Array(8)].map((_, i) => (
-                      <span key={i} className="h-1 w-1 rounded-full bg-slate-300 dark:bg-slate-700" />
+                      <span key={i} className="h-1 w-1 rounded-full bg-border" />
                     ))}
                   </div>
                   <div className="flex gap-4">
                     {[...Array(9)].map((_, i) => (
-                      <span key={i} className="h-1 w-1 rounded-full bg-slate-300 dark:bg-slate-700" />
+                      <span key={i} className="h-1 w-1 rounded-full bg-border" />
                     ))}
                   </div>
                 </div>
@@ -543,10 +543,14 @@ export function GlobalDashboard() {
                     return (
                       <div key={i} className="flex-1 flex flex-col items-center gap-1">
                         <div 
-                          className={`w-full transition-all duration-500 ${isHigh ? "bg-rose-600 dark:bg-[#ff3366]" : "bg-emerald-600 dark:bg-[#00ff88]"}`}
+                          className={`w-full transition-all duration-500 rounded-t-md ${
+                            isHigh 
+                              ? "bg-gradient-to-t from-rose-600/40 to-rose-500 shadow-[0_0_8px_rgba(244,63,94,0.25)]" 
+                              : "bg-gradient-to-t from-emerald-600/40 to-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.25)]"
+                          }`}
                           style={{ height: `${h}%`, minHeight: "2px" }}
                         />
-                        <span className="text-[7px] text-slate-500 dark:text-slate-600 font-bold">{i * 10}%</span>
+                        <span className="text-[7.5px] text-muted-foreground/85 font-mono font-bold">{i * 10}%</span>
                       </div>
                     );
                   })}
@@ -581,21 +585,21 @@ export function GlobalDashboard() {
 
           {/* Simulation logs terminal widget */}
           {enabledWidgets.logsTerminal && isWidgetAllowed("logsTerminal") && (
-            <div key="logsTerminal" className="bg-[#06060c] border border-slate-200 dark:border-[#222233] rounded overflow-hidden flex flex-col shadow-sm dark:shadow-none">
+            <div key="logsTerminal" className="border border-border/80 rounded-xl overflow-hidden flex flex-col shadow-sm transition-all duration-300 hover:shadow-lg hover:shadow-rose-500/5">
               {!isLayoutLocked && <div className="drag-handle h-4 bg-slate-200 dark:bg-[#1a1a2e] cursor-move flex items-center justify-center shrink-0"><Grid className="h-3 w-3 text-slate-400" /></div>}
-              <div className="border-b border-[#222233] px-3 py-2 flex justify-between items-center bg-[#12121e] shrink-0">
-                <span className="text-xs font-bold text-slate-350 dark:text-slate-300 flex items-center gap-1.5 font-mono">
-                  <Terminal className="h-3.5 w-3.5 text-rose-600 dark:text-[#ff3366]" />
+              <div className="border-b border-border/60 px-3 py-2 flex justify-between items-center bg-muted/80 backdrop-blur-md shrink-0">
+                <span className="text-[11px] font-black tracking-wider text-muted-foreground uppercase flex items-center gap-1.5 font-mono">
+                  <Terminal className="h-3.5 w-3.5 text-rose-500" />
                   OASIS 实时仿真终端 (MONITOR)
                 </span>
-                <span className="text-[8px] bg-rose-50 dark:bg-[#ff3366]/20 border border-rose-250 dark:border-[#ff3366]/30 text-rose-650 dark:text-[#ff3366] px-1 py-0.2 font-bold animate-pulse">
+                <span className="text-[8px] bg-rose-500/10 border border-rose-500/20 text-rose-400 px-1 py-0.2 font-bold animate-pulse">
                   SIMULATING
                 </span>
               </div>
               
               <div 
                 ref={logsContainerRef}
-                className="flex-1 bg-[#06060c] p-2.5 overflow-y-auto text-[10px] font-mono leading-relaxed space-y-2 border-b border-[#222233]"
+                className="flex-1 bg-black/90 p-2.5 overflow-y-auto text-[10px] font-mono leading-relaxed space-y-2 border-b border-border/40"
               >
                 {logs.map((log, idx) => {
                   let color = "text-slate-400";
