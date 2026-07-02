@@ -11,6 +11,16 @@ export function EChartsRelationGraph({ onSelectNode, activeNode }: EChartsRelati
   const containerRef = useRef<HTMLDivElement>(null);
   const chartRef = useRef<echarts.ECharts | null>(null);
   const [graphData, setGraphData] = useState<{ nodes: any[]; links: any[] } | null>(null);
+  const [isDark, setIsDark] = useState(() => document.documentElement.classList.contains("dark"));
+
+  // Watch for theme changes
+  useEffect(() => {
+    const observer = new MutationObserver(() => {
+      setIsDark(document.documentElement.classList.contains("dark"));
+    });
+    observer.observe(document.documentElement, { attributes: true, attributeFilter: ["class"] });
+    return () => observer.disconnect();
+  }, []);
 
   // Fetch graph data from backend
   useEffect(() => {
@@ -49,6 +59,14 @@ export function EChartsRelationGraph({ onSelectNode, activeNode }: EChartsRelati
 
     const chart = chartRef.current || echarts.init(containerRef.current);
     chartRef.current = chart;
+
+    // Theme-aware colors
+    const tooltipBg = isDark ? "#11111e" : "#ffffff";
+    const tooltipBorder = isDark ? "#333344" : "#e2e8f0";
+    const tooltipText = isDark ? "#e2e8f0" : "#1e293b";
+    const tooltipSubText = isDark ? "#94a3b8" : "#64748b";
+    const labelColor = isDark ? "#94a3b8" : "#475569";
+    const legendColor = isDark ? "#94a3b8" : "#475569";
 
     const categories = [
       { name: "题材板块" },
@@ -109,13 +127,14 @@ export function EChartsRelationGraph({ onSelectNode, activeNode }: EChartsRelati
       backgroundColor: "transparent",
       tooltip: {
         trigger: "item",
+        extraCssText: `box-shadow: 0 4px 20px rgba(0,0,0,${isDark ? "0.5" : "0.12"});`,
         formatter: (params: any) => {
           if (params.dataType === "node") {
             const data = params.data;
-            return `<div style="background:#11111e;border:1px solid #333344;padding:8px;border-radius:4px;color:#fff;font-size:11px;">
-              <span style="font-weight:bold;color:${data.itemStyle?.color || '#00e5ff'}">${data.name}</span><br/>
-              类型: ${data.categoryName}<br/>
-              详情: ${data.value || "无数据"}
+            return `<div style="background:${tooltipBg};border:1px solid ${tooltipBorder};padding:8px 10px;border-radius:6px;font-size:11px;line-height:1.8;">
+              <span style="font-weight:bold;font-size:12px;color:${data.itemStyle?.color || '#00e5ff'}">${data.name}</span><br/>
+              <span style="color:${tooltipSubText}">类型: <span style="color:${tooltipText}">${data.categoryName}</span></span><br/>
+              <span style="color:${tooltipSubText}">详情: <span style="color:${tooltipText}">${data.value || "无数据"}</span></span>
             </div>`;
           }
           return "";
@@ -125,7 +144,7 @@ export function EChartsRelationGraph({ onSelectNode, activeNode }: EChartsRelati
         {
           data: ["题材板块", "热门个股", "AI智能体"],
           textStyle: {
-            color: "#94a3b8",
+            color: legendColor,
             fontSize: 10,
           },
           icon: "circle",
@@ -152,7 +171,7 @@ export function EChartsRelationGraph({ onSelectNode, activeNode }: EChartsRelati
           label: {
             show: true,
             position: "bottom",
-            color: "#94a3b8",
+            color: labelColor,
             fontSize: 9,
             fontWeight: "bold",
           },
@@ -191,7 +210,7 @@ export function EChartsRelationGraph({ onSelectNode, activeNode }: EChartsRelati
     return () => {
       window.removeEventListener("resize", handleResize);
     };
-  }, [graphData, onSelectNode]);
+  }, [graphData, onSelectNode, isDark]);
 
   // Handle activeNode highlighting externally
   useEffect(() => {

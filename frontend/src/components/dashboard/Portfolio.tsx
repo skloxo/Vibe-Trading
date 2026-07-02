@@ -42,10 +42,10 @@ export function Portfolio({ data, netAsset }: PortfolioProps) {
 
       <div className="space-y-1.5 flex-1 overflow-auto">
         <div className="grid grid-cols-12 text-[10px] font-black text-muted-foreground/80 px-2 py-1 border-b border-border/40 uppercase tracking-widest">
-          <span className="col-span-3">名称</span>
-          <span className="col-span-3 text-right">持仓/成本</span>
-          <span className="col-span-3 text-right">现价</span>
-          <span className="col-span-3 text-right">浮动盈亏</span>
+          <span className="col-span-3">{isEn ? "Name/Code" : "名称/代码"}</span>
+          <span className="col-span-3 text-right">{isEn ? "Shares/Cost" : "持仓/成本"}</span>
+          <span className="col-span-3 text-right">{isEn ? "Price" : "现价"}</span>
+          <span className="col-span-3 text-right">{isEn ? "P&L" : "浮动盈亏"}</span>
         </div>
 
         {positions.map((pos) => {

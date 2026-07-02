@@ -16,7 +16,7 @@ interface LimitUpBoardProps {
 export function LimitUpBoard({ data }: LimitUpBoardProps) {
   const { i18n } = useTranslation();
   const isEn = i18n.language?.startsWith("en");
-  
+
   const defaultStockList: StockItem[] = [
     { code: "300750", name: "宁德时代", price: 218.40, change: 20.00, boardCount: 2 },
     { code: "600519", name: "贵州茅台", price: 1650.00, change: 10.02, boardCount: 1 },
@@ -41,27 +41,47 @@ export function LimitUpBoard({ data }: LimitUpBoardProps) {
         </span>
         <span className="text-[10px] px-1.5 py-0.5 bg-rose-50 dark:bg-[#ff3366]/10 text-rose-600 dark:text-[#ff3366] font-bold border border-rose-200 dark:border-transparent rounded">T+1</span>
       </div>
+
       <div className="flex-1 overflow-auto p-1.5 space-y-1">
+        {/* 表头 */}
         <div className="grid grid-cols-12 text-[9px] font-bold text-slate-400 dark:text-slate-500 px-2 py-1 border-b border-slate-100 dark:border-[#1f1f2e]">
-          <span className="col-span-3">代码</span>
-          <span className="col-span-3">简称</span>
-          <span className="col-span-3 text-right">现价</span>
-          <span className="col-span-3 text-right">涨幅</span>
+          <span className="col-span-5">{isEn ? "Name / Code" : "名称 / 代码"}</span>
+          <span className="col-span-2 text-center">{isEn ? "Board" : "连板"}</span>
+          <span className="col-span-3 text-right">{isEn ? "Price" : "现价"}</span>
+          <span className="col-span-2 text-right">{isEn ? "Chg%" : "涨幅"}</span>
         </div>
+
         {stockList.map((stock) => (
-          <div 
-            key={stock.code} 
+          <div
+            key={stock.code}
             className="grid grid-cols-12 text-xs items-center px-2 py-1.5 hover:bg-slate-50 dark:hover:bg-[#1a1a2e] transition-colors rounded"
           >
-            <span className="col-span-3 text-slate-500 dark:text-slate-400 font-bold">{stock.code}</span>
-            <span className="col-span-3 text-slate-900 dark:text-white truncate font-sans">{stock.name}</span>
+            {/* 名称 + 代码合并列 */}
+            <div className="col-span-5 flex flex-col gap-0.5 min-w-0">
+              <span className="text-slate-900 dark:text-white font-bold truncate text-[11px] leading-tight">{stock.name}</span>
+              <span className="text-[9px] text-slate-400 dark:text-slate-500 font-mono">{stock.code}</span>
+            </div>
+
+            {/* 连板数徽章 */}
+            <div className="col-span-2 flex justify-center">
+              {stock.boardCount >= 2 ? (
+                <span className="text-[9px] px-1.5 py-0.5 bg-rose-50 dark:bg-[#ff3366]/20 border border-rose-200 dark:border-[#ff3366]/40 text-rose-600 dark:text-[#ff3366] rounded font-mono font-black leading-none">
+                  {stock.boardCount}连
+                </span>
+              ) : (
+                <span className="text-[9px] px-1.5 py-0.5 bg-slate-50 dark:bg-[#1e1e2f] border border-slate-200 dark:border-[#2a2a3e] text-slate-500 dark:text-slate-400 rounded font-mono leading-none">
+                  首板
+                </span>
+              )}
+            </div>
+
+            {/* 现价 */}
             <span className="col-span-3 text-right text-slate-600 dark:text-slate-300 font-bold tabular-nums">
               {stock.price.toFixed(2)}
             </span>
-            <span className="col-span-3 text-right font-bold text-rose-600 dark:text-[#ff3366] tabular-nums flex items-center justify-end gap-0.5">
-              <span className="text-[8px] px-1 py-0.2 bg-rose-50 dark:bg-[#ff3366]/20 border border-rose-200 dark:border-[#ff3366]/30 text-rose-600 dark:text-[#ff3366] rounded font-mono mr-1">
-                {stock.boardCount}B
-              </span>
+
+            {/* 涨幅 */}
+            <span className="col-span-2 text-right font-bold text-rose-600 dark:text-[#ff3366] tabular-nums text-[11px]">
               +{stock.change.toFixed(2)}%
             </span>
           </div>
