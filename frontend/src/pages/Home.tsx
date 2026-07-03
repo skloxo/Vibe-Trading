@@ -97,7 +97,7 @@ export function Home() {
 
         {/* Title */}
         <h1 className="text-5xl md:text-7xl font-black tracking-tight leading-none">
-          <span className="bg-gradient-to-r from-primary via-orange-400 to-amber-400 bg-clip-text text-transparent drop-shadow-sm">
+          <span className="bg-gradient-to-r from-primary via-red-500 to-rose-900 bg-clip-text text-transparent drop-shadow-sm">
             {isZh ? "潮汐投研" : "TideTrading"}
           </span>
         </h1>

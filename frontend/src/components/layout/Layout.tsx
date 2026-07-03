@@ -171,7 +171,11 @@ export function Layout() {
         <div className={cn("border-b", isCollapsed ? "p-2 flex justify-center" : "p-4")}>
           <Link to="/" className={cn("flex items-center font-bold text-base tracking-tight", isCollapsed ? "justify-center" : "gap-2")}>
             <img src="/logo.png" className="h-5 w-5 rounded-md object-contain shrink-0" alt="Logo" />
-            {!isCollapsed && (i18nHook.language === "zh-CN" ? "潮汐投研" : "TideTrading")}
+            {!isCollapsed && (
+              <span className="bg-gradient-to-r from-primary to-rose-700 bg-clip-text text-transparent">
+                {i18nHook.language === "zh-CN" ? "潮汐投研" : "TideTrading"}
+              </span>
+            )}
           </Link>
         </div>
 
@@ -350,7 +354,9 @@ export function Layout() {
         <header className="flex h-14 items-center justify-between border-b bg-card px-4 md:hidden shrink-0">
           <Link to="/" className="flex items-center font-bold text-base tracking-tight gap-2">
             <BarChart3 className="h-5 w-5 text-primary shrink-0" />
-            {i18nHook.language === "zh-CN" ? "潮汐投研" : "TideTrading"}
+            <span className="bg-gradient-to-r from-primary to-rose-700 bg-clip-text text-transparent">
+              {i18nHook.language === "zh-CN" ? "潮汐投研" : "TideTrading"}
+            </span>
           </Link>
           <button 
             onClick={() => setMobileOpen(!mobileOpen)}
