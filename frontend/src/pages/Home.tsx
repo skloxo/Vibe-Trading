@@ -1,4 +1,5 @@
 import { Link } from "react-router-dom";
+import { useState, useEffect } from "react";
 import {
   ArrowRight,
   Bot,
@@ -15,22 +16,55 @@ import {
   Compass,
   TrendingUp,
   TrendingDown,
+  Loader2,
 } from "lucide-react";
 import { useTranslation } from "react-i18next";
+import { api } from "@/lib/api";
 
-/* ─────────────────────────── mock live ticker data ─────────────────────────── */
-const TICKER = [
-  { code: "300750", name: "宁德时代", price: "218.40", chg: "+2.00%", up: true },
-  { code: "600519", name: "贵州茅台", price: "1650.00", chg: "+1.02%", up: true },
-  { code: "002594", name: "比亚迪",   price: "256.80", chg: "+7.45%", up: true },
-  { code: "601138", name: "工业富联", price: "24.75",  chg: "+10.01%",up: true },
-  { code: "601398", name: "工商银行", price: "5.62",   chg: "-1.23%", up: false },
-  { code: "000063", name: "中兴通讯", price: "29.81",  chg: "+10.00%",up: true },
-];
+interface TickerItem {
+  code: string;
+  name: string;
+  price: string;
+  chg: string;
+  up: boolean;
+}
 
 export function Home() {
   const { i18n } = useTranslation();
   const isZh = i18n.language?.startsWith("zh");
+
+  const [ticker, setTicker] = useState<TickerItem[]>([]);
+  const [tickerLoading, setTickerLoading] = useState(true);
+
+  useEffect(() => {
+    let cancelled = false;
+    const load = async () => {
+      try {
+        const data = await api.getDashboardMarketData();
+        if (cancelled) return;
+        const watchlist: TickerItem[] = (data.watchlist ?? []).map((w: any) => {
+          const chgNum = typeof w.change === "number" ? w.change : 0;
+          const sign = chgNum >= 0 ? "+" : "";
+          return {
+            code: w.code,
+            name: w.name,
+            price: typeof w.price === "number" ? w.price.toFixed(2) : String(w.price ?? "--"),
+            chg: `${sign}${chgNum.toFixed(2)}%`,
+            up: chgNum >= 0,
+          };
+        });
+        setTicker(watchlist);
+      } catch {
+        // silently ignore — ticker strip just stays empty
+      } finally {
+        if (!cancelled) setTickerLoading(false);
+      }
+    };
+    load();
+    // Refresh every 30s during trading hours
+    const interval = setInterval(load, 30_000);
+    return () => { cancelled = true; clearInterval(interval); };
+  }, []);
 
   const FEATURES = [
     {
@@ -131,18 +165,32 @@ export function Home() {
               <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 animate-pulse inline-block" />
               {isZh ? "实时行情" : "Live Quotes"}
             </span>
+            {!tickerLoading && ticker.length > 0 && (
+              <span className="ml-auto text-[9px] text-muted-foreground/50 font-normal">30s 自动刷新</span>
+            )}
           </div>
-          <div className="flex flex-wrap px-4 py-2.5 gap-x-6 gap-y-1.5">
-            {TICKER.map((t) => (
-              <div key={t.code} className="flex items-center gap-1.5 text-[11px] font-mono">
-                <span className="text-muted-foreground">{t.name}</span>
-                <span className="font-semibold text-foreground">{t.price}</span>
-                <span className={t.up ? "text-rose-500 flex items-center gap-0.5" : "text-emerald-500 flex items-center gap-0.5"}>
-                  {t.up ? <TrendingUp className="h-2.5 w-2.5" /> : <TrendingDown className="h-2.5 w-2.5" />}
-                  {t.chg}
-                </span>
-              </div>
-            ))}
+          <div className="flex flex-wrap px-4 py-2.5 gap-x-6 gap-y-1.5 min-h-[36px] items-center">
+            {tickerLoading ? (
+              <span className="flex items-center gap-1.5 text-[11px] text-muted-foreground/60">
+                <Loader2 className="h-3 w-3 animate-spin" />
+                {isZh ? "行情加载中…" : "Loading quotes…"}
+              </span>
+            ) : ticker.length === 0 ? (
+              <span className="text-[11px] text-muted-foreground/50">
+                {isZh ? "暂无自选股行情，请在设置中配置自选股" : "No watchlist. Add stocks in Settings."}
+              </span>
+            ) : (
+              ticker.map((t) => (
+                <div key={t.code} className="flex items-center gap-1.5 text-[11px] font-mono">
+                  <span className="text-muted-foreground">{t.name}</span>
+                  <span className="font-semibold text-foreground">{t.price}</span>
+                  <span className={t.up ? "text-rose-500 flex items-center gap-0.5" : "text-emerald-500 flex items-center gap-0.5"}>
+                    {t.up ? <TrendingUp className="h-2.5 w-2.5" /> : <TrendingDown className="h-2.5 w-2.5" />}
+                    {t.chg}
+                  </span>
+                </div>
+              ))
+            )}
           </div>
         </div>
       </section>
