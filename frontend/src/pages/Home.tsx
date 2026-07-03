@@ -33,39 +33,6 @@ export function Home() {
   const { i18n } = useTranslation();
   const isZh = i18n.language?.startsWith("zh");
 
-  const [ticker, setTicker] = useState<TickerItem[]>([]);
-  const [tickerLoading, setTickerLoading] = useState(true);
-
-  useEffect(() => {
-    let cancelled = false;
-    const load = async () => {
-      try {
-        const data = await api.getDashboardMarketData();
-        if (cancelled) return;
-        const watchlist: TickerItem[] = (data.watchlist ?? []).map((w: any) => {
-          const chgNum = typeof w.change === "number" ? w.change : 0;
-          const sign = chgNum >= 0 ? "+" : "";
-          return {
-            code: w.code,
-            name: w.name,
-            price: typeof w.price === "number" ? w.price.toFixed(2) : String(w.price ?? "--"),
-            chg: `${sign}${chgNum.toFixed(2)}%`,
-            up: chgNum >= 0,
-          };
-        });
-        setTicker(watchlist);
-      } catch {
-        // silently ignore — ticker strip just stays empty
-      } finally {
-        if (!cancelled) setTickerLoading(false);
-      }
-    };
-    load();
-    // Refresh every 30s during trading hours
-    const interval = setInterval(load, 30_000);
-    return () => { cancelled = true; clearInterval(interval); };
-  }, []);
-
   const FEATURES = [
     {
       icon: Bot,
@@ -158,41 +125,6 @@ export function Home() {
           </Link>
         </div>
 
-        {/* Live ticker strip */}
-        <div className="w-full max-w-4xl mt-4 overflow-hidden rounded-xl border border-border/50 bg-card/60 backdrop-blur-sm">
-          <div className="flex items-center gap-0 border-b border-border/40 px-3 py-1.5 bg-muted/30">
-            <span className="flex items-center gap-1.5 text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">
-              <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 animate-pulse inline-block" />
-              {isZh ? "实时行情" : "Live Quotes"}
-            </span>
-            {!tickerLoading && ticker.length > 0 && (
-              <span className="ml-auto text-[9px] text-muted-foreground/50 font-normal">30s 自动刷新</span>
-            )}
-          </div>
-          <div className="flex flex-wrap px-4 py-2.5 gap-x-6 gap-y-1.5 min-h-[36px] items-center">
-            {tickerLoading ? (
-              <span className="flex items-center gap-1.5 text-[11px] text-muted-foreground/60">
-                <Loader2 className="h-3 w-3 animate-spin" />
-                {isZh ? "行情加载中…" : "Loading quotes…"}
-              </span>
-            ) : ticker.length === 0 ? (
-              <span className="text-[11px] text-muted-foreground/50">
-                {isZh ? "暂无自选股行情，请在设置中配置自选股" : "No watchlist. Add stocks in Settings."}
-              </span>
-            ) : (
-              ticker.map((t) => (
-                <div key={t.code} className="flex items-center gap-1.5 text-[11px] font-mono">
-                  <span className="text-muted-foreground">{t.name}</span>
-                  <span className="font-semibold text-foreground">{t.price}</span>
-                  <span className={t.up ? "text-rose-500 flex items-center gap-0.5" : "text-emerald-500 flex items-center gap-0.5"}>
-                    {t.up ? <TrendingUp className="h-2.5 w-2.5" /> : <TrendingDown className="h-2.5 w-2.5" />}
-                    {t.chg}
-                  </span>
-                </div>
-              ))
-            )}
-          </div>
-        </div>
       </section>
 
       {/* ══════════════════ 2. FEATURE CARDS ══════════════════ */}
