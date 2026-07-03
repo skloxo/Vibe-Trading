@@ -119,6 +119,71 @@ def _rolling_correlation_matrix(
     return labels, matrix
 
 
+def _fetch_from_local_db(
+    codes: list[str],
+    start_date: str,
+    end_date: str,
+) -> dict[str, "pd.DataFrame"]:
+    """Query kline_daily from the shared local market DB for bare 6-digit codes.
+
+    Accepts codes in any format: bare ``600519``, ``600519.SH``, or ``600519.SS``.
+    Returns a dict mapping the *original* code string -> DataFrame with a
+    ``trade_date`` DatetimeIndex and a ``close`` column.
+    """
+    import sqlite3
+
+    try:
+        from src.config.paths import get_market_db_path
+        db_path = get_market_db_path()
+    except Exception:
+        return {}
+
+    if not db_path.exists():
+        return {}
+
+    # Build bare-code → original-code mapping
+    bare_map: dict[str, str] = {}
+    for c in codes:
+        bare = c.split(".")[0].strip()
+        if bare.isdigit():
+            bare_map[bare] = c
+
+    if not bare_map:
+        return {}
+
+    result: dict[str, "pd.DataFrame"] = {}
+    try:
+        conn = sqlite3.connect(str(db_path), timeout=5)
+        placeholders = ",".join("?" * len(bare_map))
+        rows = conn.execute(
+            f"SELECT code, date, close FROM kline_daily "
+            f"WHERE code IN ({placeholders}) AND date >= ? AND date <= ? "
+            f"ORDER BY code, date",
+            list(bare_map.keys()) + [start_date, end_date],
+        ).fetchall()
+        conn.close()
+
+        # Group rows per bare code
+        from collections import defaultdict
+        grouped: dict[str, list] = defaultdict(list)
+        for bare, date, close in rows:
+            if close is not None:
+                grouped[bare].append({"trade_date": date, "close": float(close)})
+
+        for bare, record_list in grouped.items():
+            if len(record_list) >= 5:  # need at least a few points
+                df = pd.DataFrame(record_list)
+                df["trade_date"] = pd.to_datetime(df["trade_date"])
+                df = df.set_index("trade_date").sort_index()
+                original = bare_map[bare]
+                result[original] = df
+
+    except Exception:
+        pass
+
+    return result
+
+
 def compute_correlation_matrix(
     codes: list[str],
     days: int = 90,
@@ -126,8 +191,12 @@ def compute_correlation_matrix(
 ) -> Dict[str, object]:
     """Fetch price data and compute correlation matrix for a list of assets.
 
+    Priority:
+      1. Local ``kline_daily`` table in the shared market DB (zero-latency).
+      2. Network loader fallback chain (tencent → mootdx → eastmoney → ...).
+
     Args:
-        codes: List of asset codes (e.g. ["BTC-USDT", "ETH-USDT", "SPY"]).
+        codes: List of asset codes (e.g. ["000001.SZ", "600519.SH", "SPY"]).
         days: Lookback window in days (default 90).
         method: Correlation method.
 
@@ -139,38 +208,40 @@ def compute_correlation_matrix(
     end_date = datetime.now().strftime("%Y-%m-%d")
     start_date = (datetime.now() - timedelta(days=days + 60)).strftime("%Y-%m-%d")
 
-    # Import here to avoid circular
-    from backtest.loaders.registry import resolve_loader
+    # ── Step 1: try local DB first ────────────────────────────────────────────
+    price_series: Dict[str, pd.DataFrame] = _fetch_from_local_db(codes, start_date, end_date)
 
-    price_series: Dict[str, pd.DataFrame] = {}
+    # ── Step 2: network fallback for any codes not found locally ──────────────
+    missing = [c for c in codes if c not in price_series]
+    if missing:
+        from backtest.loaders.registry import resolve_loader
 
-    for code in codes:
-        market = infer_market(code)
-        try:
-            loader = resolve_loader(market)
-        except Exception:
-            # Fall back to yfinance for us_equity / hk_equity
+        for code in missing:
+            market = infer_market(code)
             try:
-                from backtest.loaders.registry import LOADER_REGISTRY
-                if "yfinance" in LOADER_REGISTRY:
-                    loader = LOADER_REGISTRY["yfinance"]()
-                else:
+                loader = resolve_loader(market)
+            except Exception:
+                try:
+                    from backtest.loaders.registry import LOADER_REGISTRY
+                    if "yfinance" in LOADER_REGISTRY:
+                        loader = LOADER_REGISTRY["yfinance"]()
+                    else:
+                        continue
+                except Exception:
                     continue
+
+            try:
+                result = loader.fetch(
+                    codes=[code],
+                    start_date=start_date,
+                    end_date=end_date,
+                    interval="1D",
+                    fields=["trade_date", "open", "high", "low", "close", "volume"],
+                )
+                if code in result and not result[code].empty:
+                    price_series[code] = result[code]
             except Exception:
                 continue
-
-        try:
-            result = loader.fetch(
-                codes=[code],
-                start_date=start_date,
-                end_date=end_date,
-                interval="1D",
-                fields=["trade_date", "open", "high", "low", "close", "volume"],
-            )
-            if code in result and not result[code].empty:
-                price_series[code] = result[code]
-        except Exception:
-            continue
 
     if len(price_series) < 2:
         raise ValueError(
