@@ -39,11 +39,8 @@ export function AuthBarrier({ onLogin }: AuthBarrierProps) {
   return (
     <div className="rounded-xl border bg-card p-6 shadow-xl space-y-6">
       <div className="text-center space-y-2">
-        <h2 className="text-xl font-bold tracking-tight">
-          <span className="bg-gradient-to-r from-primary to-rose-700 bg-clip-text text-transparent">
-            潮汐投研 TideTrading
-          </span>
-          {" "}系统访问
+        <h2 className="text-xl font-bold tracking-tight text-foreground">
+          潮汐投研 TideTrading 系统访问
         </h2>
         <p className="text-sm text-muted-foreground">请输入密钥访问，或注册成为新租户</p>
       </div>
